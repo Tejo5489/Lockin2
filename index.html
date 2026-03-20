@@ -247,21 +247,23 @@
                         <i class="ph ph-stop-circle text-xl"></i> Stop & Summary
                     </button>
                 </div>
+                
+                <!-- THE FIX: Video is absolute and opacity-0 so it stays "visible" to the browser but hidden to the user -->
                 <div class="neo-panel overflow-hidden relative aspect-video flex items-center justify-center bg-navy w-full">
-                    <!-- THE FIX: Muted is crucial for browsers to allow video, and we remove 'hidden' so it processes frames -->
-                    <video id="input_video" autoplay playsinline muted></video>
-                    <canvas id="output_canvas" class="w-full h-full object-cover hidden"></canvas>
+                    <video id="input_video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none z-0"></video>
+                    <canvas id="output_canvas" class="absolute inset-0 w-full h-full object-cover hidden z-10"></canvas>
                     
-                    <div id="videoPlaceholder" class="absolute flex flex-col items-center justify-center text-white">
+                    <div id="videoPlaceholder" class="absolute flex flex-col items-center justify-center text-white z-20">
                         <i class="ph ph-eye-closed text-6xl mb-4 opacity-50"></i>
                         <p class="text-lg font-bold tracking-wide uppercase">Optics Offline</p>
                     </div>
                     
-                    <div id="loadingOverlay" class="absolute inset-0 bg-navy/90 flex flex-col items-center justify-center hidden z-10">
+                    <div id="loadingOverlay" class="absolute inset-0 bg-navy/90 flex flex-col items-center justify-center hidden z-30">
                         <i class="ph ph-spinner-gap animate-spin text-5xl text-brand-blue mb-4"></i>
                         <p class="text-white font-mono text-sm font-bold tracking-widest uppercase mt-4">Booting Neural Engine...</p>
                     </div>
                 </div>
+
                 <div class="neo-panel p-5 h-48 flex flex-col bg-white">
                     <h3 class="text-[11px] font-black text-navy-light mb-2 uppercase tracking-[0.2em] font-display flex items-center gap-2">
                         <i class="ph ph-chart-line-up text-brand-blue text-lg"></i> Flow Timeline
@@ -314,10 +316,6 @@
       and replace this tag with: <script src="engine.js"></script>
     -->
     <script>
-        // Set up the initial state for the video element so it's not disrupting the layout
-        const videoElement = document.getElementById('input_video');
-        videoElement.style.cssText = 'position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px; z-index: -100; opacity: 0.01; pointer-events: none;';
-
         // =====================================================================
         // MODULE 1: CORE STATE & DATA MANAGEMENT
         // =====================================================================
@@ -603,8 +601,9 @@
         }
 
         // =====================================================================
-        // MODULE 3: AI FOCUS ENGINE (WEB STANDARD VERSION)
+        // MODULE 3: AI FOCUS ENGINE (THE 4/4 LOOP)
         // =====================================================================
+        const videoElement = document.getElementById('input_video');
         const canvasElement = document.getElementById('output_canvas');
         const canvasCtx = canvasElement.getContext('2d');
         const loadingOverlay = document.getElementById('loadingOverlay');
@@ -618,9 +617,15 @@
         const graphCtx = graphCanvas.getContext('2d');
         if (graphCanvas) graphCanvas.style.transform = 'scaleX(1)';
 
+        // Offscreen canvas is required for manual frame requests
+        const offscreenCanvas = document.createElement('canvas');
+        const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+        offscreenCanvas.width = 640;
+        offscreenCanvas.height = 480;
+
         let isRunning = false;
         let isInitializing = false; 
-        let camera = null;
+        let nativeStream = null;
         let faceMesh = null;
         let currentScore = 0;
         let smoothedScore = 0;
@@ -762,6 +767,17 @@
             updateStateUI();
         }
 
+        async function processVideoFrame() {
+            if (!isRunning) return;
+            try {
+                if (videoElement.readyState >= 2 && faceMesh) {
+                    offscreenCtx.drawImage(videoElement, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
+                    await faceMesh.send({ image: offscreenCanvas });
+                }
+            } catch (e) {}
+            requestAnimationFrame(processVideoFrame);
+        }
+
         async function initModel() {
             if (isInitializing || isRunning) return; 
             isInitializing = true;
@@ -776,33 +792,32 @@
             document.getElementById('uiBreaks').innerText = "0";
 
             try {
-                if (loadingTextObj) loadingTextObj.innerText = "1/3: FETCHING AI FILES...";
+                if (loadingTextObj) loadingTextObj.innerText = "1/4: WAKING UP WEBCAM...";
+                nativeStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+                });
+
+                videoElement.srcObject = nativeStream;
+                
+                if (loadingTextObj) loadingTextObj.innerText = "2/4: MOUNTING VIDEO FEED...";
+                
+                await new Promise((resolve) => {
+                    videoElement.onloadedmetadata = () => {
+                        videoElement.play().then(resolve);
+                    };
+                });
+
                 if(!faceMesh) {
+                    if (loadingTextObj) loadingTextObj.innerText = "3/4: FETCHING AI FILES...";
                     faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
                     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
                     faceMesh.onResults(onResults);
                 }
 
-                if (loadingTextObj) loadingTextObj.innerText = "2/3: WAKING UP WEBCAM...";
-                
-                // THE FIX: Browsers permanently freeze videos that have "display: none".
-                // We use opacity/sizing so the browser keeps reading the frames natively!
-                videoElement.style.cssText = 'position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; opacity: 0.01; z-index: -100; pointer-events: none;';
-                
-                camera = new Camera(videoElement, {
-                    onFrame: async () => {
-                        if (isRunning && faceMesh) {
-                            await faceMesh.send({ image: videoElement });
-                        }
-                    },
-                    width: 640,
-                    height: 480
-                });
-
-                if (loadingTextObj) loadingTextObj.innerText = "3/3: COMPILING AI ENGINE...";
+                if (loadingTextObj) loadingTextObj.innerText = "4/4: COMPILING AI ENGINE (WAIT FOR IT)...";
                 
                 isRunning = true;
-                await camera.start();
+                processVideoFrame();
 
             } catch (error) {
                 loadingOverlay.classList.add('hidden');
@@ -817,9 +832,9 @@
             isRunning = false;
             isInitializing = false;
             
-            if (camera) {
-                camera.stop();
-                camera = null;
+            if (nativeStream) {
+                nativeStream.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
             }
             
             clearInterval(sessionTimer);
