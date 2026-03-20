@@ -616,7 +616,7 @@
 
         let isRunning = false;
         let isInitializing = false; 
-        let nativeStream = null; 
+        let camera = null;
         let faceMesh = null;
         let currentScore = 0;
         let smoothedScore = 0;
@@ -758,19 +758,6 @@
             updateStateUI();
         }
 
-        async function processVideoFrame() {
-            if (!isRunning) return;
-            try {
-                if (videoElement.readyState >= 2 && faceMesh) {
-                    // Send the raw web video element directly. No offscreen hacks needed for browsers!
-                    await faceMesh.send({ image: videoElement });
-                }
-            } catch (e) {}
-            
-            // Reverted back to requestAnimationFrame for buttery smooth tracking
-            requestAnimationFrame(processVideoFrame);
-        }
-
         async function initModel() {
             if (isInitializing || isRunning) return; 
             isInitializing = true;
@@ -785,61 +772,42 @@
             document.getElementById('uiBreaks').innerText = "0";
 
             try {
-                if (loadingTextObj) loadingTextObj.innerText = "1/4: WAKING UP WEBCAM...";
-                nativeStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
-                });
-
-                videoElement.srcObject = nativeStream;
-                videoElement.muted = true;
-                videoElement.playsInline = true;
-                
-                // THE FIX: Chrome/Safari pause videos with 'display: none'. We must use the CSS hack!
-                videoElement.classList.remove('hidden');
-                videoElement.style.cssText = 'position: fixed; top: -10000px; left: -10000px; width: 640px; height: 480px; z-index: -1; pointer-events: none; opacity: 0;';
-
-                if (loadingTextObj) loadingTextObj.innerText = "2/4: MOUNTING VIDEO FEED...";
-                
-                await Promise.race([
-                    new Promise((resolve) => {
-                        if (videoElement.readyState >= 2) { 
-                            videoElement.play().then(resolve).catch(resolve);
-                        } else { 
-                            videoElement.onloadeddata = () => {
-                                videoElement.play().then(resolve).catch(resolve);
-                            };
-                        }
-                    }),
-                    new Promise(resolve => setTimeout(resolve, 3000)) 
-                ]);
-
+                if (loadingTextObj) loadingTextObj.innerText = "1/3: FETCHING AI FILES...";
                 if(!faceMesh) {
-                    if (loadingTextObj) loadingTextObj.innerText = "3/4: FETCHING AI FILES...";
                     faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
                     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
                     faceMesh.onResults(onResults);
                 }
 
-                if (loadingTextObj) loadingTextObj.innerText = "4/4: COMPILING AI ENGINE (WAIT FOR IT)...";
+                if (loadingTextObj) loadingTextObj.innerText = "2/3: WAKING UP WEBCAM...";
+                
+                // THE FIX: We are now using MediaPipe's official Camera Utility.
+                // It natively bypasses browser frame freezing and automatically handles hidden video states!
+                camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        if (isRunning && faceMesh) {
+                            await faceMesh.send({ image: videoElement });
+                        }
+                    },
+                    width: 640,
+                    height: 480
+                });
+
+                if (loadingTextObj) loadingTextObj.innerText = "3/3: COMPILING AI ENGINE...";
+                
+                // Keep the video element hidden but accessible in the DOM
+                videoElement.classList.add('hidden');
+                videoElement.style.cssText = 'position: absolute; top: -9999px; width: 640px; height: 480px; z-index: -1;';
                 
                 isRunning = true;
-                processVideoFrame();
+                await camera.start();
 
             } catch (error) {
                 loadingOverlay.classList.add('hidden');
                 isInitializing = false;
                 
                 let stepInfo = loadingTextObj ? `\nFailed at: ${loadingTextObj.innerText}` : "";
-                
-                if (error.name === "NotFoundError" || error.name === "OverconstrainedError") {
-                    alert("HARDWARE ERROR: Windows cannot detect any physical webcam plugged in." + stepInfo);
-                } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-                    alert("HARDWARE CONFLICT: Your camera is blocked by Antivirus or being used by Zoom/Teams/Discord/OBS." + stepInfo);
-                } else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-                    alert("PERMISSION ERROR: You blocked camera access in your browser settings." + stepInfo);
-                } else {
-                    alert("Initialization Failed: " + (error.message || "Unknown error.") + stepInfo);
-                }
+                alert("Initialization Failed. Ensure camera permissions are granted in your browser." + stepInfo);
             }
         }
 
@@ -847,8 +815,12 @@
             isRunning = false;
             isInitializing = false;
             
-            if (nativeStream) {
-                nativeStream.getTracks().forEach(track => track.stop());
+            // Stop the official MediaPipe Camera Utility
+            if (camera) {
+                camera.stop();
+                camera = null;
+            }
+            if (videoElement) {
                 videoElement.srcObject = null;
             }
             
