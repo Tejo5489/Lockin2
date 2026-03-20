@@ -248,7 +248,8 @@
                     </button>
                 </div>
                 <div class="neo-panel overflow-hidden relative aspect-video flex items-center justify-center bg-navy w-full">
-                    <video id="input_video" class="hidden" autoplay playsinline></video>
+                    <!-- THE FIX: Muted is crucial for browsers to allow video, and we remove 'hidden' so it processes frames -->
+                    <video id="input_video" autoplay playsinline muted></video>
                     <canvas id="output_canvas" class="w-full h-full object-cover hidden"></canvas>
                     
                     <div id="videoPlaceholder" class="absolute flex flex-col items-center justify-center text-white">
@@ -313,6 +314,10 @@
       and replace this tag with: <script src="engine.js"></script>
     -->
     <script>
+        // Set up the initial state for the video element so it's not disrupting the layout
+        const videoElement = document.getElementById('input_video');
+        videoElement.style.cssText = 'position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px; z-index: -100; opacity: 0.01; pointer-events: none;';
+
         // =====================================================================
         // MODULE 1: CORE STATE & DATA MANAGEMENT
         // =====================================================================
@@ -600,7 +605,6 @@
         // =====================================================================
         // MODULE 3: AI FOCUS ENGINE (WEB STANDARD VERSION)
         // =====================================================================
-        const videoElement = document.getElementById('input_video');
         const canvasElement = document.getElementById('output_canvas');
         const canvasCtx = canvasElement.getContext('2d');
         const loadingOverlay = document.getElementById('loadingOverlay');
@@ -781,8 +785,10 @@
 
                 if (loadingTextObj) loadingTextObj.innerText = "2/3: WAKING UP WEBCAM...";
                 
-                // THE FIX: We are now using MediaPipe's official Camera Utility.
-                // It natively bypasses browser frame freezing and automatically handles hidden video states!
+                // THE FIX: Browsers permanently freeze videos that have "display: none".
+                // We use opacity/sizing so the browser keeps reading the frames natively!
+                videoElement.style.cssText = 'position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; opacity: 0.01; z-index: -100; pointer-events: none;';
+                
                 camera = new Camera(videoElement, {
                     onFrame: async () => {
                         if (isRunning && faceMesh) {
@@ -794,10 +800,6 @@
                 });
 
                 if (loadingTextObj) loadingTextObj.innerText = "3/3: COMPILING AI ENGINE...";
-                
-                // Keep the video element hidden but accessible in the DOM
-                videoElement.classList.add('hidden');
-                videoElement.style.cssText = 'position: absolute; top: -9999px; width: 640px; height: 480px; z-index: -1;';
                 
                 isRunning = true;
                 await camera.start();
@@ -815,13 +817,9 @@
             isRunning = false;
             isInitializing = false;
             
-            // Stop the official MediaPipe Camera Utility
             if (camera) {
                 camera.stop();
                 camera = null;
-            }
-            if (videoElement) {
-                videoElement.srcObject = null;
             }
             
             clearInterval(sessionTimer);
