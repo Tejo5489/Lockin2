@@ -119,14 +119,15 @@
     <div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center bg-beige/80 backdrop-blur-sm hidden transition-opacity">
         <div class="neo-panel p-8 max-w-lg w-full text-center">
             <h2 class="text-3xl font-display font-black mb-2 text-navy uppercase tracking-widest border-b-4 border-navy pb-4 flex items-center justify-center gap-3">
-                <i class="ph ph-sparkle text-brand-blue"></i> Execution Report
+                <i class="ph-fill ph-receipt text-brand-blue"></i> Focus Receipt
             </h2>
             <div class="my-4">
-                <textarea id="reportText" class="w-full neo-input p-4 h-48 rounded-lg font-mono text-sm resize-none"></textarea>
+                <div id="reportVisual" class="w-full"></div>
+                <textarea id="reportText" class="hidden"></textarea>
             </div>
             <div class="flex gap-4">
-                <button id="copyBtn" onclick="copyReport()" class="neo-btn neo-btn-blue py-3 px-6 flex-1 rounded-lg flex items-center justify-center gap-2">
-                    <i class="ph ph-copy"></i> Copy Report
+                <button id="downloadBtn" onclick="downloadReport()" class="neo-btn neo-btn-blue py-3 px-6 flex-1 rounded-lg flex items-center justify-center gap-2">
+                    <i class="ph ph-download-simple"></i> Download
                 </button>
                 <button onclick="closeReport()" class="neo-btn neo-btn-white py-3 px-6 flex-1 rounded-lg">Close</button>
             </div>
@@ -597,7 +598,7 @@
         }
 
         // =====================================================================
-        // MODULE 3: AI FOCUS ENGINE (NATIVE CAMERA BYPASS)
+        // MODULE 3: AI FOCUS ENGINE (WEB STANDARD VERSION)
         // =====================================================================
         const videoElement = document.getElementById('input_video');
         const canvasElement = document.getElementById('output_canvas');
@@ -612,12 +613,6 @@
         const graphCanvas = document.getElementById('graphCanvas');
         const graphCtx = graphCanvas.getContext('2d');
         if (graphCanvas) graphCanvas.style.transform = 'scaleX(1)';
-
-        // The critical Off-Screen Canvas to prevent WebGL crashes
-        const offscreenCanvas = document.createElement('canvas');
-        const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
-        offscreenCanvas.width = 640;
-        offscreenCanvas.height = 480;
 
         let isRunning = false;
         let isInitializing = false; 
@@ -767,11 +762,13 @@
             if (!isRunning) return;
             try {
                 if (videoElement.readyState >= 2 && faceMesh) {
-                    offscreenCtx.drawImage(videoElement, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
-                    await faceMesh.send({ image: offscreenCanvas });
+                    // Send the raw web video element directly. No offscreen hacks needed for browsers!
+                    await faceMesh.send({ image: videoElement });
                 }
             } catch (e) {}
-            requestAnimationFrame(processVideoFrame);
+            
+            // Run at a stable 10 FPS. Gives the browser room to breathe so it doesn't freeze!
+            setTimeout(processVideoFrame, 100);
         }
 
         async function initModel() {
@@ -797,8 +794,9 @@
                 videoElement.muted = true;
                 videoElement.playsInline = true;
                 
-                videoElement.classList.remove('hidden');
-                videoElement.style.cssText = 'position: fixed; top: -10000px; left: -10000px; width: 640px; height: 480px; z-index: -1; pointer-events: none;';
+                // Clean standard hidden state for the web
+                videoElement.classList.add('hidden');
+                videoElement.style.cssText = '';
 
                 if (loadingTextObj) loadingTextObj.innerText = "2/4: MOUNTING VIDEO FEED...";
                 
@@ -929,10 +927,12 @@
             });
             
             let trendStr = "";
+            let percentChange = 0;
             if (lastWeekHabits > 0) {
-                const percentChange = Math.round(((currentWeekHabits - lastWeekHabits) / lastWeekHabits) * 100);
+                percentChange = Math.round(((currentWeekHabits - lastWeekHabits) / lastWeekHabits) * 100);
                 trendStr = percentChange >= 0 ? `(+${percentChange}% vs last week 📈)` : `(${percentChange}% vs last week 📉)`;
             } else if (lastWeekHabits === 0 && currentWeekHabits > 0) {
+                percentChange = 100;
                 trendStr = `(+100% vs last week 📈)`;
             }
 
@@ -943,17 +943,69 @@
             else if (currentWeekHabits === 0 && completedTasks === 0) insight = "System resting. Ready to attack the next deep work session. 🔋";
             else insight = "Maintaining the baseline. Focusing on ruthless execution. 🧠";
 
-            const report = `🔥 LockIn | Execution Report\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎯 Objectives Secured: ${completedTasks}\n✅ Habits Maintained: ${currentWeekHabits} ${trendStr}\n⚡ AI Insight: ${insight}\n\nOutwork everyone.\n#LockedIn #DeepWork`;
+            // Visual HTML for the Modal (Cute Neo-Brutalist Theme)
+            const visualHTML = `
+                <div class="bg-white border-[3px] border-navy shadow-[4px_4px_0px_0px_#0F172A] rounded-xl p-5 text-left relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 opacity-10 text-8xl">✨</div>
+                    
+                    <div class="space-y-3 font-mono font-bold text-sm text-navy relative z-10">
+                        <div class="flex justify-between items-center border-b-[3px] border-dashed border-navy/20 pb-2">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-target text-brand-red text-lg"></i> Tasks Crushed</span>
+                            <span class="text-lg bg-brand-blue text-white px-2 py-0.5 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-navy">${completedTasks}</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b-[3px] border-dashed border-navy/20 pb-2">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-plant text-brand-green text-lg"></i> Habits Watered</span>
+                            <span class="text-lg bg-brand-green text-white px-2 py-0.5 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-navy">${currentWeekHabits}</span>
+                        </div>
+                        <div class="flex justify-between items-center pb-1 mt-1">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-fire text-brand-amber text-lg"></i> Momentum</span>
+                            <span class="text-brand-amber text-md font-black bg-orange-100 px-2 py-1 rounded border-2 border-brand-amber shadow-[2px_2px_0px_0px_#D97706]">${percentChange > 0 ? '+'+percentChange : percentChange}%</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 bg-beige-dark border-[3px] border-navy p-4 rounded-lg shadow-[inset_2px_2px_0px_0px_rgba(0,0,0,0.1)] relative z-10">
+                        <p class="text-[10px] uppercase font-black tracking-widest text-navy mb-1 flex items-center gap-1"><i class="ph-fill ph-robot text-brand-blue text-sm"></i> AI Vibe Check</p>
+                        <p class="text-sm font-bold leading-tight">"${insight}"</p>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('reportVisual').innerHTML = visualHTML;
+
+            // Plain text payload for the downloaded file
+            const report = `🧾 LOCK-IN FOCUS RECEIPT\n================================\n\n🎯 Tasks Crushed:   ${completedTasks}\n🌱 Habits Watered:  ${currentWeekHabits} ${trendStr}\n\n🤖 AI Vibe Check:\n"${insight}"\n\n================================\nKeep grinding. #LockIn`;
 
             document.getElementById('reportText').value = report;
             document.getElementById('reportModal').classList.remove('hidden');
+            
+            // Reset download button state
+            const downloadBtn = document.getElementById('downloadBtn');
+            if(downloadBtn) {
+                downloadBtn.innerHTML = '<i class="ph ph-download-simple"></i> Download';
+                downloadBtn.classList.replace('bg-brand-green', 'neo-btn-blue');
+            }
         }
 
-        function copyReport() {
-            const text = document.getElementById('reportText');
-            text.select();
-            document.execCommand('copy');
-            document.getElementById('copyBtn').innerHTML = '<i class="ph ph-check"></i> Copied to Clipboard!';
+        function downloadReport() {
+            const text = document.getElementById('reportText').value;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            const dateStr = new Date().toISOString().split('T')[0];
+            a.download = `Focus_Receipt_${dateStr}.txt`;
+            
+            document.body.appendChild(a);
+            a.click();
+            
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Visual confirmation
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.innerHTML = '<i class="ph ph-check"></i> Saved!';
+            downloadBtn.classList.replace('neo-btn-blue', 'bg-brand-green');
         }
 
         function closeReport() {
