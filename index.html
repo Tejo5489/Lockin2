@@ -767,8 +767,8 @@
                 }
             } catch (e) {}
             
-            // Run at a stable 10 FPS. Gives the browser room to breathe so it doesn't freeze!
-            setTimeout(processVideoFrame, 100);
+            // Reverted back to requestAnimationFrame for buttery smooth tracking
+            requestAnimationFrame(processVideoFrame);
         }
 
         async function initModel() {
@@ -794,9 +794,9 @@
                 videoElement.muted = true;
                 videoElement.playsInline = true;
                 
-                // Clean standard hidden state for the web
-                videoElement.classList.add('hidden');
-                videoElement.style.cssText = '';
+                // THE FIX: Chrome/Safari pause videos with 'display: none'. We must use the CSS hack!
+                videoElement.classList.remove('hidden');
+                videoElement.style.cssText = 'position: fixed; top: -10000px; left: -10000px; width: 640px; height: 480px; z-index: -1; pointer-events: none; opacity: 0;';
 
                 if (loadingTextObj) loadingTextObj.innerText = "2/4: MOUNTING VIDEO FEED...";
                 
