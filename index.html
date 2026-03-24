@@ -331,7 +331,6 @@
         let habits = JSON.parse(localStorage.getItem('acuityHabits')) || [];
         let tasks = JSON.parse(localStorage.getItem('acuityTasksList')) || [];
 
-        // Wrap the weekly rollover into a function we can trigger dynamically
         function checkWeeklyRollover() {
             const thisMonday = getMondayOfCurrentWeek(new Date());
             if (appMeta.currentWeekStart !== thisMonday) {
@@ -348,7 +347,6 @@
             return false;
         }
 
-        // Run once on boot
         checkWeeklyRollover();
 
         document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -419,12 +417,10 @@
                 lastWeekTotal += (h.lastWeekCount || 0);
             });
 
-            // PACING ALGORITHM: Calculate how many days have elapsed this week
             const today = new Date();
             const currentDayIndex = (today.getDay() + 6) % 7; 
-            const elapsedDays = currentDayIndex + 1; // 1 (Mon) to 7 (Sun)
+            const elapsedDays = currentDayIndex + 1; 
 
-            // NO BASELINE: Calculate raw completion rate for the first week
             if (lastWeekTotal === 0) {
                 if (currentWeekTotal === 0) {
                     trendDisplay.innerHTML = `0% <i class="ph ph-minus"></i>`;
@@ -440,7 +436,6 @@
                 return;
             }
 
-            // BASELINE EXISTS: Calculate expected pace based on elapsed days
             const expectedLastWeekWTD = (lastWeekTotal / 7) * elapsedDays;
             let percentChange = 0;
             
@@ -466,7 +461,6 @@
         }
 
         function renderHabits() {
-            // Check for a new week every time we render to guarantee automatic resets
             checkWeeklyRollover();
 
             const list = document.getElementById('habitList');
@@ -479,7 +473,6 @@
                 return;
             }
 
-            // Lock future days: Calculate current day index (Monday = 0, Sunday = 6)
             const today = new Date();
             const currentDayIndex = (today.getDay() + 6) % 7; 
 
@@ -641,7 +634,7 @@
         }
 
         // =====================================================================
-        // MODULE 3: AI FOCUS ENGINE (EAR + NOTIFICATIONS + ACADEMIC MATH)
+        // MODULE 3: AI FOCUS ENGINE (RUTHLESS STICKY ALARMS)
         // =====================================================================
         const videoElement = document.getElementById('input_video');
         const canvasElement = document.getElementById('output_canvas');
@@ -685,8 +678,9 @@
         const maxGraphPoints = 100;
         let scoreHistory = new Array(maxGraphPoints).fill(0);
 
-        // --- SYNTHESIZED AUDIO ENGINE ---
+        // --- SYNTHESIZED AUDIO ENGINE WITH CONTINUOUS LOOP ---
         let audioCtx = null;
+        let alertInterval = null; // Used to loop the alarm
 
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -710,6 +704,20 @@
             };
             playBeep(0);
             playBeep(0.2);
+        }
+
+        function startAlertLoop() {
+            if (!alertInterval) {
+                playAlertSound(); // Play instantly first
+                alertInterval = setInterval(playAlertSound, 2000); // Keep blasting every 2 seconds
+            }
+        }
+
+        function stopAlertLoop() {
+            if (alertInterval) {
+                clearInterval(alertInterval);
+                alertInterval = null;
+            }
         }
 
         function playLeaveSound() {
@@ -828,31 +836,55 @@
             scoreHistory.push(displayScore);
             drawGraph();
 
-            // State Logic
-            let newState = 'focused';
+            // The New Sticky State Logic
+            let newState = currentState;
+            
+            const isFaceMissing = (currentScore === 0 && currentEar === 1.0 && sleepStartTime === 0);
+            const isSleeping = (sleepStartTime > 0 && (performance.now() - sleepStartTime > SLEEP_THRESHOLD_MS));
             
             if (!isRunning) {
                 newState = 'standby';
             } 
-            else if (currentScore === 0 && currentEar === 1.0 && sleepStartTime === 0) {
-                newState = 'missing';
-            } 
-            else if (sleepStartTime > 0 && (performance.now() - sleepStartTime > SLEEP_THRESHOLD_MS)) {
-                newState = 'sleeping';
-            } 
-            else if (displayScore < 40) {
-                newState = 'distracted';
+            else if (isFaceMissing) {
+                newState = 'missing'; // This respects your rule to let Break Logic happen normally
+            }
+            else if (currentState === 'sleeping') {
+                // HOLD STATE: If they were sleeping, they MUST prove they are awake by opening eyes AND facing camera
+                if (currentEar >= 0.22 && displayScore >= 40) {
+                    newState = 'focused';
+                } else {
+                    newState = 'sleeping';
+                }
+            }
+            else if (currentState === 'distracted') {
+                // HOLD STATE: Must prove they are focused again
+                if (isSleeping) {
+                    newState = 'sleeping';
+                } else if (displayScore >= 40) {
+                    newState = 'focused';
+                } else {
+                    newState = 'distracted';
+                }
+            }
+            else {
+                // Normal evaluation
+                if (isSleeping) {
+                    newState = 'sleeping';
+                } else if (displayScore < 40) {
+                    newState = 'distracted';
+                } else {
+                    newState = 'focused';
+                }
             }
             
             // Audio Triggers & UI Updates
             if (newState !== currentState) {
-                let justReturned = false;
-                
+                // Determine if we just returned from a break
                 if (currentState === 'missing' && (newState === 'focused' || newState === 'standby' || newState === 'distracted')) {
                     playReturnSound();
-                    justReturned = true;
                 }
                 
+                stopAlertLoop(); // Immediately silence any running alarms before changing state
                 currentState = newState;
                 
                 if (currentState === 'focused') {
@@ -863,17 +895,17 @@
                     statusText.innerText = 'Fatigue / Sleep';
                     statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
                     scoreBar.style.backgroundColor = '#BE123C';
-                    playAlertSound();
+                    startAlertLoop(); // Trigger continuous alarm loop!
                 } else if (currentState === 'distracted') {
                     statusText.innerText = 'Distracted';
                     statusText.className = 'text-4xl font-display font-black text-brand-amber uppercase tracking-widest block mb-4';
                     scoreBar.style.backgroundColor = '#D97706';
-                    if (!justReturned) playAlertSound();
+                    startAlertLoop(); // Trigger continuous alarm loop!
                 } else if (currentState === 'missing') {
                     statusText.innerText = 'No Subject';
                     statusText.className = 'text-4xl font-display font-black text-navy uppercase tracking-widest block mb-4';
                     scoreBar.style.backgroundColor = '#0F172A';
-                    playLeaveSound();
+                    playLeaveSound(); // Trigger normal break sound
                 }
             }
         }
@@ -934,16 +966,28 @@
                 currentEar = calculateEAR(landmarks);
                 
                 if (currentEar < 0.22) {
-                    // Start sleep timer (avoids penalizing regular blinks)
+                    // Start sleep timer but keep calculating score to not false-alarm a blink
                     if (sleepStartTime === 0) sleepStartTime = performance.now();
                 } else {
                     sleepStartTime = 0;
                     currentScore = calculateAttentionScore(landmarks);
                 }
+                
+                // Instant snap to avoid a 1-second false distraction alarm when returning from a break
+                if (currentState === 'missing') {
+                    smoothedScore = currentScore;
+                }
+
             } else {
-                currentScore = 0;
-                currentEar = 1.0; 
-                sleepStartTime = 0; 
+                if (sleepStartTime > 0) {
+                    // CRITICAL FIX: If user slumped out of view with eyes closed, keep sleep timer running!
+                    currentScore = 0; 
+                } else {
+                    // Normal Break
+                    currentScore = 0;
+                    currentEar = 1.0; 
+                    sleepStartTime = 0; 
+                }
             }
             
             canvasCtx.restore();
@@ -1009,6 +1053,9 @@
         function endSession() {
             isRunning = false;
             isInitializing = false;
+            
+            stopAlertLoop(); // Silence any ringing alarms
+            
             if (nativeStream) {
                 nativeStream.getTracks().forEach(track => track.stop());
                 videoElement.srcObject = null;
