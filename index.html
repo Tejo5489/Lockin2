@@ -80,6 +80,10 @@
         .habit-checkbox:checked { background-color: #1E3A8A; }
         .habit-checkbox:checked::after { content: '✓'; position: absolute; color: white; font-weight: bold; font-size: 16px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
         .habit-checkbox:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px 0px #0F172A; }
+        
+        /* Add styling for time-locked future checkboxes */
+        .habit-checkbox:disabled { opacity: 0.3; background-color: #D1CCC4; cursor: not-allowed !important; }
+        .habit-checkbox:disabled:active { transform: none; box-shadow: 2px 2px 0px 0px #0F172A; }
     </style>
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-start p-4 lg:p-8">
@@ -327,18 +331,25 @@
         let habits = JSON.parse(localStorage.getItem('acuityHabits')) || [];
         let tasks = JSON.parse(localStorage.getItem('acuityTasksList')) || [];
 
-        const thisMonday = getMondayOfCurrentWeek(new Date());
-
-        if (appMeta.currentWeekStart !== thisMonday) {
-            console.log("New week detected! Archiving last week's data...");
-            habits.forEach(h => {
-                h.lastWeekCount = h.days.filter(Boolean).length;
-                h.days = [false, false, false, false, false, false, false];
-            });
-            appMeta.currentWeekStart = thisMonday;
-            localStorage.setItem('acuityMeta', JSON.stringify(appMeta));
-            localStorage.setItem('acuityHabits', JSON.stringify(habits));
+        // Wrap the weekly rollover into a function we can trigger dynamically
+        function checkWeeklyRollover() {
+            const thisMonday = getMondayOfCurrentWeek(new Date());
+            if (appMeta.currentWeekStart !== thisMonday) {
+                console.log("New week detected! Archiving last week's data...");
+                habits.forEach(h => {
+                    h.lastWeekCount = h.days.filter(Boolean).length;
+                    h.days = [false, false, false, false, false, false, false];
+                });
+                appMeta.currentWeekStart = thisMonday;
+                localStorage.setItem('acuityMeta', JSON.stringify(appMeta));
+                localStorage.setItem('acuityHabits', JSON.stringify(habits));
+                return true;
+            }
+            return false;
         }
+
+        // Run once on boot
+        checkWeeklyRollover();
 
         document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -408,31 +419,56 @@
                 lastWeekTotal += (h.lastWeekCount || 0);
             });
 
-            if (lastWeekTotal === 0 && currentWeekTotal > 0) {
-                trendDisplay.innerHTML = `+100% <i class="ph ph-trend-up"></i>`;
-                trendDisplay.className = "text-5xl font-black font-display text-brand-green flex items-center gap-2";
-                trendDesc.innerText = `Completed ${currentWeekTotal} tasks (Up from 0)`;
-            } else if (lastWeekTotal === 0 && currentWeekTotal === 0) {
-                trendDisplay.innerHTML = `0% <i class="ph ph-minus"></i>`;
-                trendDisplay.className = "text-5xl font-black font-display text-navy flex items-center gap-2";
-                trendDesc.innerText = `Awaiting action`;
-            } else {
-                const percentChange = Math.round(((currentWeekTotal - lastWeekTotal) / lastWeekTotal) * 100);
-                if (percentChange > 0) {
-                    trendDisplay.innerHTML = `+${percentChange}% <i class="ph ph-trend-up"></i>`;
-                    trendDisplay.className = "text-5xl font-black font-display text-brand-green flex items-center gap-2";
-                } else if (percentChange < 0) {
-                    trendDisplay.innerHTML = `${percentChange}% <i class="ph ph-trend-down"></i>`;
-                    trendDisplay.className = "text-5xl font-black font-display text-brand-red flex items-center gap-2";
-                } else {
+            // PACING ALGORITHM: Calculate how many days have elapsed this week
+            const today = new Date();
+            const currentDayIndex = (today.getDay() + 6) % 7; 
+            const elapsedDays = currentDayIndex + 1; // 1 (Mon) to 7 (Sun)
+
+            // NO BASELINE: Calculate raw completion rate for the first week
+            if (lastWeekTotal === 0) {
+                if (currentWeekTotal === 0) {
                     trendDisplay.innerHTML = `0% <i class="ph ph-minus"></i>`;
                     trendDisplay.className = "text-5xl font-black font-display text-navy flex items-center gap-2";
+                    trendDesc.innerText = `Awaiting action`;
+                } else {
+                    const possibleSoFar = habits.length * elapsedDays;
+                    const rate = Math.round((currentWeekTotal / possibleSoFar) * 100);
+                    trendDisplay.innerHTML = `${rate}% <i class="ph ph-trend-up"></i>`;
+                    trendDisplay.className = "text-5xl font-black font-display text-brand-green flex items-center gap-2";
+                    trendDesc.innerText = `Completion rate so far (Baseline)`;
                 }
-                trendDesc.innerText = `${currentWeekTotal} this week vs ${lastWeekTotal} last week`;
+                return;
+            }
+
+            // BASELINE EXISTS: Calculate expected pace based on elapsed days
+            const expectedLastWeekWTD = (lastWeekTotal / 7) * elapsedDays;
+            let percentChange = 0;
+            
+            if (expectedLastWeekWTD > 0) {
+                percentChange = Math.round(((currentWeekTotal - expectedLastWeekWTD) / expectedLastWeekWTD) * 100);
+            } else {
+                percentChange = currentWeekTotal > 0 ? 100 : 0;
+            }
+
+            if (percentChange > 0) {
+                trendDisplay.innerHTML = `+${percentChange}% <i class="ph ph-trend-up"></i>`;
+                trendDisplay.className = "text-5xl font-black font-display text-brand-green flex items-center gap-2";
+                trendDesc.innerText = `Ahead of last week's pace`;
+            } else if (percentChange < 0) {
+                trendDisplay.innerHTML = `${percentChange}% <i class="ph ph-trend-down"></i>`;
+                trendDisplay.className = "text-5xl font-black font-display text-brand-red flex items-center gap-2";
+                trendDesc.innerText = `Behind last week's pace`;
+            } else {
+                trendDisplay.innerHTML = `0% <i class="ph ph-minus"></i>`;
+                trendDisplay.className = "text-5xl font-black font-display text-navy flex items-center gap-2";
+                trendDesc.innerText = `Matching last week's pace`;
             }
         }
 
         function renderHabits() {
+            // Check for a new week every time we render to guarantee automatic resets
+            checkWeeklyRollover();
+
             const list = document.getElementById('habitList');
             list.innerHTML = '';
             
@@ -443,10 +479,17 @@
                 return;
             }
 
+            // Lock future days: Calculate current day index (Monday = 0, Sunday = 6)
+            const today = new Date();
+            const currentDayIndex = (today.getDay() + 6) % 7; 
+
             habits.forEach(habit => {
                 let checkboxesHTML = '';
                 for(let i=0; i<7; i++) {
-                    checkboxesHTML += `<td class="text-center py-4"><input type="checkbox" class="habit-checkbox" ${habit.days[i] ? 'checked' : ''} onchange="toggleHabitDay('${habit.id}', ${i})"></td>`;
+                    const isFutureDay = i > currentDayIndex;
+                    const disabledAttr = isFutureDay ? 'disabled title="Time-locked: Future date"' : '';
+                    
+                    checkboxesHTML += `<td class="text-center py-4"><input type="checkbox" class="habit-checkbox" ${habit.days[i] ? 'checked' : ''} ${disabledAttr} onchange="toggleHabitDay('${habit.id}', ${i})"></td>`;
                 }
                 list.innerHTML += `
                     <tr class="border-b-2 border-navy border-opacity-20 hover:bg-white transition-colors">
@@ -1044,14 +1087,25 @@
                 lastWeekHabits += (h.lastWeekCount || 0);
             });
             
+            const today = new Date();
+            const currentDayIndex = (today.getDay() + 6) % 7; 
+            const elapsedDays = currentDayIndex + 1;
+
             let trendStr = "";
             let percentChange = 0;
+            
             if (lastWeekHabits > 0) {
-                percentChange = Math.round(((currentWeekHabits - lastWeekHabits) / lastWeekHabits) * 100);
-                trendStr = percentChange >= 0 ? `(+${percentChange}% vs last week 📈)` : `(${percentChange}% vs last week 📉)`;
+                const expectedLastWeekWTD = (lastWeekHabits / 7) * elapsedDays;
+                if (expectedLastWeekWTD > 0) {
+                    percentChange = Math.round(((currentWeekHabits - expectedLastWeekWTD) / expectedLastWeekWTD) * 100);
+                } else {
+                    percentChange = currentWeekHabits > 0 ? 100 : 0;
+                }
+                trendStr = percentChange >= 0 ? `(+${percentChange}% vs last week's pace 📈)` : `(${percentChange}% vs last week's pace 📉)`;
             } else if (lastWeekHabits === 0 && currentWeekHabits > 0) {
-                percentChange = 100;
-                trendStr = `(+100% vs last week 📈)`;
+                const possibleSoFar = habits.length * elapsedDays;
+                percentChange = Math.round((currentWeekHabits / possibleSoFar) * 100) || 0;
+                trendStr = `(${percentChange}% Completion Rate 📈)`;
             }
 
             let insight = "";
