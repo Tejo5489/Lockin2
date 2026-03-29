@@ -94,34 +94,61 @@
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-start p-4 lg:p-8">
 
-    <!-- Summary Modal -->
-    <div id="summaryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-beige/80 backdrop-blur-sm hidden transition-opacity">
-        <div class="neo-panel p-8 max-w-lg w-full text-center">
-            <h2 class="text-3xl font-display font-black mb-2 text-navy uppercase tracking-widest border-b-4 border-navy pb-4">Study Summary</h2>
-            <div class="my-6">
-                <div id="badgeIcon" class="text-7xl mb-2">💎</div>
-                <h3 id="badgeTitle" class="text-2xl font-black text-brand-blue uppercase tracking-widest">Diamond Focus</h3>
-                <p id="badgeDesc" class="text-navy-light font-bold text-sm mt-1">Exceptional concentration.</p>
+    <div id="authGate" class="fixed inset-0 z-[100] bg-beige flex flex-col items-center justify-center p-4 transition-opacity duration-300">
+        <div class="max-w-md w-full neo-panel p-10 bg-white flex flex-col items-center text-center shadow-[12px_12px_0px_0px_#0F172A]">
+            <div class="bg-navy text-white p-4 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] mb-6">
+                <i class="ph ph-target text-5xl"></i>
             </div>
-            <div class="grid grid-cols-2 gap-4 text-left mb-8 border-t-2 border-b-2 border-navy py-4">
-                <div class="p-2">
-                    <p class="text-[10px] font-black uppercase tracking-widest text-navy-light">On Camera (Focus)</p>
-                    <p id="sumOnCamera" class="text-2xl font-mono font-black text-brand-green">00:00</p>
+            <h1 class="text-4xl font-display font-black tracking-tight text-navy uppercase mb-2">LockIn</h1>
+            <p class="text-navy-light font-bold text-sm mb-8">Zero Distractions. Absolute Execution. Enter your email to create a free local account.</p>
+            
+            <form id="loginForm" class="w-full flex flex-col gap-4">
+                <div class="text-left w-full">
+                    <label class="text-navy-light text-[10px] font-black uppercase tracking-widest mb-1 block">Your Email Address</label>
+                    <input type="email" id="emailInput" required placeholder="founder@startup.com" class="neo-input w-full px-4 py-4 rounded-lg font-bold text-navy text-center text-lg">
                 </div>
-                <div class="p-2">
-                    <p class="text-[10px] font-black uppercase tracking-widest text-navy-light">Off Camera</p>
-                    <p id="sumOffCamera" class="text-2xl font-mono font-black text-brand-red">00:00</p>
+                <button type="submit" class="neo-btn neo-btn-blue py-4 w-full rounded-lg text-lg flex items-center justify-center gap-2 mt-2">
+                    <i class="ph ph-key text-xl"></i> Unlock Protocol
+                </button>
+            </form>
+            <p class="text-[10px] font-black text-navy-light mt-6 uppercase tracking-widest flex items-center gap-1">
+                <i class="ph ph-shield-check text-brand-green text-lg"></i> 100% Private Local Storage
+            </p>
+        </div>
+    </div>
+
+    <!-- Summary Modal UPGRADED -->
+    <div id="summaryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-beige/80 backdrop-blur-sm hidden transition-opacity">
+        <div class="neo-panel p-8 max-w-lg w-full text-center flex flex-col gap-4">
+            <h2 class="text-3xl font-display font-black text-navy uppercase tracking-widest border-b-4 border-navy pb-4">Session Terminated</h2>
+            
+            <div class="bg-beige-dark border-2 border-navy rounded-xl p-6 relative overflow-hidden mt-2">
+                <div class="absolute -right-4 -top-4 opacity-10 text-8xl" id="badgeIconBg">💎</div>
+                <div id="badgeIcon" class="text-6xl mb-2 relative z-10 drop-shadow-[4px_4px_0px_rgba(15,23,42,0.2)]">💎</div>
+                <h3 id="badgeTitle" class="text-3xl font-black text-brand-blue uppercase tracking-widest relative z-10">Diamond Focus</h3>
+                <p id="badgeDesc" class="text-navy-light font-bold text-sm mt-1 relative z-10">Exceptional concentration.</p>
+            </div>
+
+            <div class="w-full bg-white rounded-full h-6 border-2 border-navy overflow-hidden relative shadow-[inset_2px_2px_0px_rgba(0,0,0,0.1)]">
+                <div id="summaryScoreBar" class="bg-brand-green h-full border-r-2 border-navy transition-all duration-700" style="width: 0%"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-[10px] font-black font-mono tracking-widest uppercase mix-blend-difference text-white">Focus Ratio: <span id="summaryFocusRatio" class="ml-1">0%</span></div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 text-left border-t-2 border-navy pt-4">
+                <div class="bg-white border-2 border-navy p-3 rounded-lg shadow-[2px_2px_0px_0px_#0F172A]">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-navy-light">On Cam</p>
+                    <p id="sumOnCamera" class="text-xl font-mono font-black text-brand-green">00:00</p>
                 </div>
-                <div class="p-2">
-                    <p class="text-[10px] font-black uppercase tracking-widest text-navy-light">Total Session</p>
-                    <p id="sumTotal" class="text-xl font-mono font-black text-navy">00:00</p>
+                <div class="bg-white border-2 border-navy p-3 rounded-lg shadow-[2px_2px_0px_0px_#0F172A]">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-navy-light">Off Cam</p>
+                    <p id="sumOffCamera" class="text-xl font-mono font-black text-brand-red">00:00</p>
                 </div>
-                <div class="p-2">
-                    <p class="text-[10px] font-black uppercase tracking-widest text-navy-light">Breaks Taken</p>
+                <div class="bg-white border-2 border-navy p-3 rounded-lg shadow-[2px_2px_0px_0px_#0F172A]">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-navy-light">Breaks</p>
                     <p id="sumBreaks" class="text-xl font-mono font-black text-brand-amber">0</p>
                 </div>
             </div>
-            <button onclick="closeSummary()" class="neo-btn neo-btn-blue py-3 px-6 w-full rounded-lg">Save & Close</button>
+            <button onclick="closeSummary()" class="neo-btn neo-btn-blue py-3 px-6 w-full rounded-lg mt-2 text-lg"><i class="ph ph-download-simple"></i> Save & Close</button>
         </div>
     </div>
 
@@ -259,9 +286,10 @@
                     </button>
                 </div>
                 
-                <div class="neo-panel overflow-hidden relative aspect-video flex items-center justify-center bg-navy w-full">
-                    <video id="input_video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover pointer-events-none z-0"></video>
-                    <canvas id="output_canvas" class="absolute inset-0 w-full h-full object-cover hidden z-10"></canvas>
+                <!-- Fixed Video Container: Forces a hard black background to eliminate white/pale letterboxing -->
+                <div class="neo-panel overflow-hidden relative aspect-video flex items-center justify-center w-full" style="background-color: #0F172A; border-color: #0F172A;">
+                    <video id="input_video" autoplay playsinline muted class="hidden"></video>
+                    <canvas id="output_canvas" class="absolute inset-0 w-full h-full object-contain hidden z-10"></canvas>
                     
                     <div id="videoPlaceholder" class="absolute flex flex-col items-center justify-center text-white z-20">
                         <i class="ph ph-eye-closed text-6xl mb-4 opacity-50"></i>
@@ -282,8 +310,18 @@
                         <canvas id="graphCanvas" class="graph-canvas w-full h-full absolute inset-0"></canvas>
                     </div>
                 </div>
+
+                <!-- Session History Panel -->
+                <div class="neo-panel p-5 flex flex-col bg-white max-h-64">
+                    <h3 class="text-[11px] font-black text-navy-light mb-4 uppercase tracking-[0.2em] font-display flex items-center gap-2 border-b-2 border-navy pb-2">
+                        <i class="ph ph-clock-counter-clockwise text-brand-blue text-lg"></i> Session History
+                    </h3>
+                    <div id="sessionHistoryList" class="flex flex-col gap-3 overflow-y-auto pr-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
             </div>
-            
             <div class="lg:col-span-4 flex flex-col gap-6">
                 <div class="neo-panel p-8 text-center bg-beige-dark">
                     <h2 class="text-navy-light text-xs font-black uppercase tracking-widest mb-4 font-display">Attention State</h2>
@@ -389,6 +427,7 @@ function getMondayOfCurrentWeek(date) {
 let appMeta = JSON.parse(localStorage.getItem('acuityMeta')) || { currentWeekStart: getMondayOfCurrentWeek(new Date()) };
 let habits = JSON.parse(localStorage.getItem('acuityHabits')) || [];
 let tasks = JSON.parse(localStorage.getItem('acuityTasksList')) || [];
+let sessions = JSON.parse(localStorage.getItem('acuitySessions')) || []; // ADDED SESSIONS
 
 function checkWeeklyRollover() {
     const thisMonday = getMondayOfCurrentWeek(new Date());
@@ -912,6 +951,45 @@ function saveTasks() {
     renderTasks();
 }
 
+// --- SESSION HISTORY LOGIC ---
+function renderSessions() {
+    const list = document.getElementById('sessionHistoryList');
+    if(!list) return;
+    list.innerHTML = '';
+    
+    if(sessions.length === 0) {
+        list.innerHTML = '<p class="text-xs font-bold text-navy-light opacity-50 text-center py-6">No sessions recorded yet. Start a protocol to log data.</p>';
+        return;
+    }
+
+    sessions.forEach(s => {
+        const dateObj = new Date(s.timestamp);
+        const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        
+        let colorClass = "text-navy";
+        if(s.focusPercent >= 90) colorClass = "text-brand-blue";
+        else if(s.focusPercent >= 75) colorClass = "text-brand-green";
+        else if(s.focusPercent < 50) colorClass = "text-brand-red";
+
+        list.innerHTML += `
+            <div class="flex items-center justify-between border-b-2 border-navy border-opacity-10 pb-3 hover:bg-beige transition-colors p-2 rounded">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl drop-shadow-[2px_2px_0px_rgba(15,23,42,0.2)]">${s.badgeIcon}</span>
+                    <div>
+                        <p class="font-bold ${colorClass} text-sm uppercase tracking-wider font-display">${s.badgeTitle}</p>
+                        <p class="text-[10px] font-black uppercase tracking-widest text-navy-light"><i class="ph ph-calendar"></i> ${dateStr} at ${timeStr}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="font-mono font-black ${colorClass} text-xl">${s.focusPercent}%</p>
+                    <p class="text-[9px] font-black uppercase tracking-widest text-navy-light">${formatTime(s.totalTime)} Total</p>
+                </div>
+            </div>
+        `;
+    });
+}
+
 function renderTasks() {
     const list = document.getElementById('taskList');
     if(!list) return;
@@ -1029,18 +1107,20 @@ const graphCanvas = document.getElementById('graphCanvas');
 const graphCtx = graphCanvas ? graphCanvas.getContext('2d') : null;
 if (graphCanvas) graphCanvas.style.transform = 'scaleX(1)';
 
-const offscreenCanvas = document.createElement('canvas');
-const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
-offscreenCanvas.width = 640;
-offscreenCanvas.height = 480;
-
 let isRunning = false;
 let isInitializing = false; 
 let nativeStream = null; 
 let faceMesh = null;
 let currentScore = 0;
+let currentEar = 1.0; 
 let smoothedScore = 0;
 let currentState = 'standby'; 
+let lastVideoTime = -1;
+
+// Sleep & Timeout vars
+let sleepStartTime = 0;
+const SLEEP_THRESHOLD_MS = 3000; // UPDATED to 3 seconds
+let lastNotificationTime = 0;
 
 let sessionTimer = null;
 let totalTimeSec = 0;
@@ -1051,6 +1131,88 @@ let breaksCount = 0;
 
 const maxGraphPoints = 100;
 let scoreHistory = new Array(maxGraphPoints).fill(0);
+
+// --- BROWSER NOTIFICATIONS ---
+function requestNotificationPermission() {
+    if ("Notification" in window) {
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+    }
+}
+
+function sendNotification(title, body) {
+    if ("Notification" in window && Notification.permission === "granted") {
+        const now = Date.now();
+        // Throttle to prevent spamming
+        if (now - lastNotificationTime > 10000) { 
+            new Notification(title, { 
+                body: body,
+                icon: "https://unpkg.com/@phosphor-icons/web/src/bold/target-bold.svg"
+            });
+            lastNotificationTime = now;
+        }
+    }
+}
+
+// --- SYNTHESIZED AUDIO LOGIC ---
+let audioCtx = null;
+
+function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playAlertSound() {
+    initAudio();
+    if (!audioCtx) return;
+    const playBeep = (timeOffset) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime + timeOffset);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime + timeOffset);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + timeOffset + 0.15);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime + timeOffset);
+        osc.stop(audioCtx.currentTime + timeOffset + 0.15);
+    };
+    playBeep(0);
+    playBeep(0.2);
+}
+
+function playLeaveSound() {
+    initAudio();
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.4);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.4);
+}
+
+function playReturnSound() {
+    initAudio();
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.4);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.4);
+}
 
 function formatTime(seconds) {
     const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
@@ -1097,6 +1259,22 @@ function drawGraph() {
     graphCtx.stroke();
 }
 
+function getDistance(p1, p2) {
+    return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+}
+
+function calculateEAR(landmarks) {
+    const leftWidth = getDistance(landmarks[33], landmarks[133]);
+    const leftHeight = getDistance(landmarks[159], landmarks[145]);
+    const earLeft = leftHeight / leftWidth;
+
+    const rightWidth = getDistance(landmarks[362], landmarks[263]);
+    const rightHeight = getDistance(landmarks[386], landmarks[374]);
+    const earRight = rightHeight / rightWidth;
+
+    return (earLeft + earRight) / 2;
+}
+
 function calculateAttentionScore(landmarks) {
     const nose = landmarks[1];
     const leftEye = landmarks[33];
@@ -1130,11 +1308,42 @@ function updateStateUI() {
     drawGraph();
 
     let newState = 'focused';
-    if (currentScore === 0 && !isRunning) newState = 'standby';
-    else if (currentScore === 0) newState = 'missing';
-    else if (displayScore < 40) newState = 'distracted';
+    
+    if (!isRunning) {
+        newState = 'standby';
+    } 
+    else if (currentScore === 0 && currentEar === 1.0 && sleepStartTime === 0) {
+        newState = 'missing';
+    } 
+    else if (sleepStartTime > 0 && (performance.now() - sleepStartTime > SLEEP_THRESHOLD_MS)) {
+        newState = 'sleeping';
+    } 
+    else if (displayScore < 40) {
+        newState = 'distracted';
+    }
     
     if (newState !== currentState) {
+        let justReturned = false;
+        
+        // Break Resumed
+        if (currentState === 'missing' && (newState === 'focused' || newState === 'standby' || newState === 'distracted')) {
+            playReturnSound();
+            justReturned = true;
+            sendNotification("Flow Resumed", "Welcome back. Telemetry locked on.");
+        }
+
+        // Sleep Triggered: Retroactively correct the 3 seconds!
+        if (newState === 'sleeping') {
+            if (onCameraSec >= 3) {
+                onCameraSec -= 3;
+                offCameraSec += 3;
+                const onCamUi = document.getElementById('uiOnCamera');
+                if(onCamUi) onCamUi.innerText = formatTime(onCameraSec);
+                const offCamUi = document.getElementById('uiOffCamera');
+                if(offCamUi) offCamUi.innerText = formatTime(offCameraSec);
+            }
+        }
+
         currentState = newState;
         
         if(!statusText) return;
@@ -1144,15 +1353,28 @@ function updateStateUI() {
             statusText.className = 'text-4xl font-display font-black text-brand-green uppercase tracking-widest block mb-4';
             if(scoreBar) scoreBar.style.backgroundColor = '#047857';
         } 
+        else if (currentState === 'sleeping') {
+            statusText.innerText = 'Fatigue / Sleep';
+            statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
+            if(scoreBar) scoreBar.style.backgroundColor = '#BE123C';
+            playAlertSound();
+            sendNotification("Wake Up!", "Fatigue detected. Time to focus.");
+        }
         else if (currentState === 'distracted') {
             statusText.innerText = 'Wandering';
             statusText.className = 'text-4xl font-display font-black text-brand-amber uppercase tracking-widest block mb-4';
             if(scoreBar) scoreBar.style.backgroundColor = '#D97706';
+            if (!justReturned) {
+                playAlertSound();
+                sendNotification("Distraction Detected", "Get back to work!");
+            }
         }
         else if (currentState === 'missing') {
             statusText.innerText = 'Absent';
             statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
             if(scoreBar) scoreBar.style.backgroundColor = '#BE123C';
+            playLeaveSound();
+            sendNotification("Break Started", "You left the camera view. Micro-break logged.");
         }
     }
 }
@@ -1183,11 +1405,11 @@ function onResults(results) {
                     }
                 }
 
-                if(currentState === 'focused' || currentState === 'distracted') {
+                if(currentState === 'focused') {
                     onCameraSec++;
                     const onCamUi = document.getElementById('uiOnCamera');
                     if(onCamUi) onCamUi.innerText = formatTime(onCameraSec);
-                } else if(currentState === 'missing') {
+                } else if(currentState === 'missing' || currentState === 'sleeping' || currentState === 'distracted') {
                     offCameraSec++;
                     const offCamUi = document.getElementById('uiOffCamera');
                     if(offCamUi) offCamUi.innerText = formatTime(offCameraSec);
@@ -1196,22 +1418,45 @@ function onResults(results) {
         }
     }
 
-    if(!canvasElement || !canvasCtx) return;
-    canvasElement.width = 640;
-    canvasElement.height = 480;
+    if(!canvasElement || !canvasCtx || !videoElement.videoWidth) return;
+    
+    // Set canvas exact dimensions to match native video stream to prevent stretching
+    canvasElement.width = videoElement.videoWidth;
+    canvasElement.height = videoElement.videoHeight;
     
     canvasCtx.save();
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     
+    // Fill background with solid dark color to prevent pale transparency bugs
+    canvasCtx.fillStyle = '#0F172A';
+    canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    
+    // Draw the native video frame
     if (results.image) {
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
     }
     
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
         const landmarks = results.multiFaceLandmarks[0];
-        currentScore = calculateAttentionScore(landmarks);
+        
+        // Draw sharp, high-contrast tracking lines (Eliminated the pale mesh filter)
+        drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#047857', lineWidth: 3}); 
+        drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#047857', lineWidth: 3}); 
+        drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_IRIS, {color: '#0F172A', lineWidth: 2}); 
+        drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_IRIS, {color: '#0F172A', lineWidth: 2}); 
+        drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: '#1E3A8A', lineWidth: 3});
+
+        currentEar = calculateEAR(landmarks);
+        
+        if (currentEar < 0.22) {
+            if (sleepStartTime === 0) sleepStartTime = performance.now();
+        } else {
+            sleepStartTime = 0;
+            currentScore = calculateAttentionScore(landmarks);
+        }
     } else {
         currentScore = 0;
+        currentEar = 1.0; 
+        sleepStartTime = 0; 
     }
     
     canvasCtx.restore();
@@ -1221,17 +1466,25 @@ function onResults(results) {
 async function processVideoFrame() {
     if (!isRunning) return;
     try {
-        if (videoElement && videoElement.readyState >= 2 && faceMesh) {
-            offscreenCtx.drawImage(videoElement, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
-            await faceMesh.send({ image: offscreenCanvas });
+        if (videoElement && videoElement.readyState >= 2 && faceMesh && videoElement.currentTime !== lastVideoTime) {
+            lastVideoTime = videoElement.currentTime;
+            // Send the video element directly to MediaPipe (Bypassing offscreen canvas alpha issues)
+            await faceMesh.send({ image: videoElement });
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error("FaceMesh Frame Error:", e);
+    }
     requestAnimationFrame(processVideoFrame);
 }
 
 async function initModel() {
     if (isInitializing || isRunning) return; 
     isInitializing = true;
+    
+    requestNotificationPermission(); 
+    initAudio(); 
+    
+    sleepStartTime = 0;
     
     const loadingTextObj = document.querySelector('#loadingOverlay p');
     if(loadingOverlay) loadingOverlay.classList.remove('hidden');
@@ -1253,7 +1506,8 @@ async function initModel() {
             videoElement.muted = true;
             videoElement.playsInline = true;
             videoElement.classList.remove('hidden');
-            videoElement.style.cssText = 'position: fixed; top: -10000px; left: -10000px; width: 640px; height: 480px; z-index: -1; pointer-events: none;';
+            // Keep in DOM for auto-exposure to work, but hide visually with 1% opacity behind canvas
+            videoElement.style.cssText = 'position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; opacity: 0.01; pointer-events: none;';
         }
 
         if (loadingTextObj) loadingTextObj.innerText = "2/4: MOUNTING VIDEO FEED...";
@@ -1281,6 +1535,9 @@ async function initModel() {
         }
 
         if (loadingTextObj) loadingTextObj.innerText = "4/4: COMPILING AI ENGINE (WAIT FOR IT)...";
+        
+        requestNotificationPermission(); 
+        initAudio(); 
         
         isRunning = true;
         processVideoFrame();
@@ -1315,6 +1572,7 @@ function endSession() {
     
     clearInterval(sessionTimer);
     sessionTimer = null; 
+    sleepStartTime = 0;
     
     if(canvasElement) canvasElement.classList.add('hidden');
     if(videoPlaceholder) videoPlaceholder.classList.remove('hidden');
@@ -1345,42 +1603,64 @@ function showSummary() {
     const sumBreaks = document.getElementById('sumBreaks');
     if(sumBreaks) sumBreaks.innerText = breaksCount;
 
-    const focusPercent = totalTimeSec > 0 ? (onCameraSec / totalTimeSec) : 0;
+    const focusPercent = totalTimeSec > 0 ? Math.round((onCameraSec / totalTimeSec) * 100) : 0;
+    
+    const summaryScoreBar = document.getElementById('summaryScoreBar');
+    const summaryFocusRatio = document.getElementById('summaryFocusRatio');
+    if(summaryScoreBar) {
+        summaryScoreBar.style.width = `${focusPercent}%`;
+        if(focusPercent >= 75) summaryScoreBar.className = 'bg-brand-green h-full border-r-2 border-navy transition-all duration-700';
+        else if(focusPercent >= 50) summaryScoreBar.className = 'bg-brand-amber h-full border-r-2 border-navy transition-all duration-700';
+        else summaryScoreBar.className = 'bg-brand-red h-full border-r-2 border-navy transition-all duration-700';
+    }
+    if(summaryFocusRatio) summaryFocusRatio.innerText = `${focusPercent}%`;
+
     const badgeIcon = document.getElementById('badgeIcon');
+    const badgeIconBg = document.getElementById('badgeIconBg');
     const badgeTitle = document.getElementById('badgeTitle');
     const badgeDesc = document.getElementById('badgeDesc');
 
-    if(badgeIcon && badgeTitle && badgeDesc) {
-        if (totalTimeSec < 60) {
-            badgeIcon.innerText = "⏱️";
-            badgeTitle.innerText = "Too Short";
-            badgeTitle.className = "text-2xl font-black text-navy uppercase tracking-widest";
-            badgeDesc.innerText = "Session was less than 1 minute.";
-        } else if (focusPercent >= 0.90 && breaksCount <= 2) {
-            badgeIcon.innerText = "💎";
-            badgeTitle.innerText = "Diamond Focus";
-            badgeTitle.className = "text-2xl font-black text-brand-blue uppercase tracking-widest";
-            badgeDesc.innerText = "Incredible concentration. Deep state achieved.";
-        } else if (focusPercent >= 0.75) {
-            badgeIcon.innerText = "🥇";
-            badgeTitle.innerText = "Gold Scholar";
-            badgeTitle.className = "text-2xl font-black text-brand-green uppercase tracking-widest";
-            badgeDesc.innerText = "Solid work session with minimal disruptions.";
-        } else if (focusPercent >= 0.50) {
-            badgeIcon.innerText = "🥈";
-            badgeTitle.innerText = "Silver Thinker";
-            badgeTitle.className = "text-2xl font-black text-navy uppercase tracking-widest";
-            badgeDesc.innerText = "Good effort, but try to reduce away-time.";
-        } else {
-            badgeIcon.innerText = "☁️";
-            badgeTitle.innerText = "Wandering Mind";
-            badgeTitle.className = "text-2xl font-black text-brand-amber uppercase tracking-widest";
-            badgeDesc.innerText = "Highly distracted session. Time to regroup.";
-        }
+    let bIcon = "☁️", bTitle = "Wandering Mind", bDesc = "Highly distracted session. Time to regroup.", colorClass = "text-brand-amber";
+
+    if (totalTimeSec < 60) {
+        bIcon = "⏱️"; bTitle = "Too Short"; bDesc = "Session was less than 1 minute."; colorClass = "text-navy";
+    } else if (focusPercent >= 90 && breaksCount <= 2) {
+        bIcon = "💎"; bTitle = "Diamond Focus"; bDesc = "Incredible concentration. Deep state achieved."; colorClass = "text-brand-blue";
+    } else if (focusPercent >= 75) {
+        bIcon = "🥇"; bTitle = "Gold Scholar"; bDesc = "Solid work session with minimal disruptions."; colorClass = "text-brand-green";
+    } else if (focusPercent >= 50) {
+        bIcon = "🥈"; bTitle = "Silver Thinker"; bDesc = "Good effort, but try to reduce away-time."; colorClass = "text-navy";
     }
+
+    if(badgeIcon) badgeIcon.innerText = bIcon;
+    if(badgeIconBg) badgeIconBg.innerText = bIcon;
+    if(badgeTitle) {
+        badgeTitle.innerText = bTitle;
+        badgeTitle.className = `text-3xl font-black ${colorClass} uppercase tracking-widest relative z-10`;
+    }
+    if(badgeDesc) badgeDesc.innerText = bDesc;
 
     const summaryModal = document.getElementById('summaryModal');
     if(summaryModal) summaryModal.classList.remove('hidden');
+
+    // --- SAVE SESSION LOGIC ---
+    if (totalTimeSec > 10) {
+        sessions.unshift({
+            id: generateId(),
+            timestamp: Date.now(),
+            totalTime: totalTimeSec,
+            focusTime: onCameraSec,
+            breaks: breaksCount,
+            focusPercent: focusPercent,
+            badgeIcon: bIcon,
+            badgeTitle: bTitle
+        });
+        
+        if(sessions.length > 50) sessions.pop(); 
+        
+        localStorage.setItem('acuitySessions', JSON.stringify(sessions));
+        renderSessions();
+    }
 }
 
 function closeSummary() {
@@ -1439,6 +1719,7 @@ function closeReport() {
 // Boot up sequence
 renderHabits(); 
 renderTasks(); 
+renderSessions();
 setTimeout(resizeHabitsGraph, 100);
     </script>
 </body>
