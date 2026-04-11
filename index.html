@@ -384,18 +384,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 submitBtn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-xl"></i> Locking In...';
                 
                 try {
-                    // IF NO URL IS SET, INSTANTLY BYPASS TO PREVENT GETTING STUCK
-                    const formUrl = 'https://formspree.io/f/YOUR_FORMSPREE_ID';
-                    if (!formUrl.includes('YOUR_FORMSPREE_ID')) {
-                        await fetch(formUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ email: email })
-                        });
-                    }
+                    // Send the captured lead to your live Formspree dashboard
+                    const formUrl = 'https://formspree.io/f/xdawjpee';
+                    
+                    await fetch(formUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email: email })
+                    });
 
                     // Save locally so they don't have to login again tomorrow
                     localStorage.setItem('lockin_user_email', email);
