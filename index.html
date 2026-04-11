@@ -1670,9 +1670,13 @@ function closeSummary() {
 }
 
 function generateAIReport() {
-    let completedTasks = tasks.filter(t => t.completed).length;
-    let currentWeekHabits = 0; let lastWeekHabits = 0;
+    const thisMonday = getMondayOfCurrentWeek(new Date());
     
+    // 1. Only count tasks that were completed THIS WEEK
+    let completedTasks = tasks.filter(t => t.completed && t.completedAt >= thisMonday).length;
+    
+    // 2. Habits are already scoped to the current week via the rollover function
+    let currentWeekHabits = 0; let lastWeekHabits = 0;
     habits.forEach(h => {
         currentWeekHabits += h.days.filter(Boolean).length;
         lastWeekHabits += (h.lastWeekCount || 0);
@@ -1688,6 +1692,20 @@ function generateAIReport() {
         trendStr = `(+100% vs last week 📈)`;
     }
 
+    // 3. Calculate Average Study Session Time per day (THIS WEEK ONLY)
+    const thisWeekSessions = sessions.filter(s => s.timestamp >= thisMonday);
+    const totalSessionSecondsThisWeek = thisWeekSessions.reduce((sum, s) => sum + s.totalTime, 0);
+    
+    const today = new Date();
+    const currentDayIndex = (today.getDay() + 6) % 7; 
+    const elapsedDays = currentDayIndex + 1; // Only calculates based on days that have passed
+    
+    const avgSecondsPerDay = Math.round(totalSessionSecondsThisWeek / elapsedDays);
+    const avgMins = Math.floor(avgSecondsPerDay / 60);
+    const avgSecs = String(avgSecondsPerDay % 60).padStart(2, '0');
+    const avgTimeStr = `${avgMins}m ${avgSecs}s`;
+
+    // 4. Generate AI Insight
     let insight = "";
     if (completedTasks > 5 && currentWeekHabits > lastWeekHabits) insight = "Absolutely locked in. Dominating objectives and outworking the competition. ⚡";
     else if (currentWeekHabits > 10) insight = "Relentless consistency. The daily systems are paying off massively. 🧱";
@@ -1695,6 +1713,7 @@ function generateAIReport() {
     else if (currentWeekHabits === 0 && completedTasks === 0) insight = "System resting. Ready to attack the next deep work session. 🔋";
     else insight = "Maintaining the baseline. Focusing on ruthless execution. 🧠";
 
+    // 5. Construct Visual Receipt
     const visualHTML = `
         <div class="bg-white border-[3px] border-navy shadow-[4px_4px_0px_0px_#0F172A] rounded-xl p-5 text-left relative overflow-hidden">
             <div class="absolute -right-4 -top-4 opacity-10 text-8xl">✨</div>
@@ -1707,6 +1726,10 @@ function generateAIReport() {
                 <div class="flex justify-between items-center border-b-[3px] border-dashed border-navy/20 pb-2">
                     <span class="flex items-center gap-2"><i class="ph-fill ph-plant text-brand-green text-lg"></i> Habits Watered</span>
                     <span class="text-lg bg-brand-green text-white px-2 py-0.5 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-navy">${currentWeekHabits}</span>
+                </div>
+                <div class="flex justify-between items-center border-b-[3px] border-dashed border-navy/20 pb-2">
+                    <span class="flex items-center gap-2"><i class="ph-fill ph-hourglass-medium text-brand-blue text-lg"></i> Daily Avg.</span>
+                    <span class="text-lg bg-navy text-white px-2 py-0.5 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-navy">${avgTimeStr}</span>
                 </div>
                 <div class="flex justify-between items-center pb-1 mt-1">
                     <span class="flex items-center gap-2"><i class="ph-fill ph-fire text-brand-amber text-lg"></i> Momentum</span>
@@ -1724,7 +1747,8 @@ function generateAIReport() {
     const reportVisual = document.getElementById('reportVisual');
     if(reportVisual) reportVisual.innerHTML = visualHTML;
 
-    const report = `🔥 LockIn | Execution Report\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎯 Objectives Secured: ${completedTasks}\n✅ Habits Maintained: ${currentWeekHabits} ${trendStr}\n⚡ AI Insight: ${insight}\n\nOutwork everyone.\n#LockedIn #DeepWork`;
+    // 6. Construct Text File for Download
+    const report = `🔥 LockIn | Weekly Execution Report\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎯 Objectives Secured: ${completedTasks}\n✅ Habits Maintained: ${currentWeekHabits} ${trendStr}\n⏳ Avg. Daily Study: ${avgTimeStr}\n⚡ AI Insight: ${insight}\n\nOutwork everyone.\n#LockedIn #DeepWork`;
 
     const reportText = document.getElementById('reportText');
     if(reportText) reportText.value = report;
@@ -1733,31 +1757,7 @@ function generateAIReport() {
     if(reportModal) reportModal.classList.remove('hidden');
 }
 
-function downloadReport() {
-    const textElement = document.getElementById('reportText');
-    if(!textElement) return;
-    
-    const text = textElement.value;
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    const dateStr = new Date().toISOString().split('T')[0];
-    a.download = `Focus_Receipt_${dateStr}.txt`;
-    
-    document.body.appendChild(a);
-    a.click();
-    
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    const downloadBtn = document.getElementById('downloadBtn');
-    if (downloadBtn) {
-        downloadBtn.innerHTML = '<i class="ph ph-check"></i> Saved!';
-        downloadBtn.classList.remove('neo-btn-blue');
-        downloadBtn.classList.add('bg-brand-green', 'text-white', 'border-navy');
-        
+function copyReport() {
         setTimeout(() => {
             downloadBtn.innerHTML = '<i class="ph ph-download-simple"></i> Download';
             downloadBtn.classList.add('neo-btn-blue');
