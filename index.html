@@ -54,7 +54,7 @@
             cursor: url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="20" height="20" fill="%231E3A8A" stroke="%230F172A" stroke-width="3"/><rect x="8" y="8" width="8" height="8" fill="%23FFFFFF"/></svg>') 12 12, pointer !important;
         }
 
-        input[type="text"], input[type="date"] { cursor: text; }
+        input[type="text"], input[type="date"], input[type="email"] { cursor: text; }
         
         .neo-panel { background: #FFFFFF; border: 3px solid #0F172A; box-shadow: 6px 6px 0px 0px #0F172A; border-radius: 12px; }
         .neo-input { background: #FFFFFF; border: 3px solid #0F172A; box-shadow: 4px 4px 0px 0px #0F172A; transition: all 0.1s; }
@@ -164,8 +164,8 @@
                 <textarea id="reportText" class="hidden"></textarea>
             </div>
             <div class="flex gap-4">
-                <button id="downloadBtn" onclick="downloadReport()" class="neo-btn neo-btn-blue py-3 px-6 flex-1 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                    <i class="ph ph-download-simple"></i> Download
+                <button id="copyBtn" onclick="copyReport()" class="neo-btn neo-btn-blue py-3 px-6 flex-1 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                    <i class="ph ph-copy"></i> Copy Text
                 </button>
                 <button onclick="closeReport()" class="neo-btn neo-btn-white py-3 px-6 flex-1 rounded-lg">Close</button>
             </div>
@@ -384,15 +384,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 submitBtn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-xl"></i> Locking In...';
                 
                 try {
-                    // PASTE YOUR FORMSPREE URL HERE
-                    await fetch('https://formspree.io/f/YOUR_FORMSPREE_ID', {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ email: email })
-                    });
+                    // IF NO URL IS SET, INSTANTLY BYPASS TO PREVENT GETTING STUCK
+                    const formUrl = 'https://formspree.io/f/YOUR_FORMSPREE_ID';
+                    if (!formUrl.includes('YOUR_FORMSPREE_ID')) {
+                        await fetch(formUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ email: email })
+                        });
+                    }
 
                     // Save locally so they don't have to login again tomorrow
                     localStorage.setItem('lockin_user_email', email);
@@ -1758,10 +1761,19 @@ function generateAIReport() {
 }
 
 function copyReport() {
+    const textElement = document.getElementById('reportText');
+    if(!textElement) return;
+
+    textElement.select();
+    document.execCommand('copy');
+
+    const copyBtn = document.getElementById('copyBtn');
+    if (copyBtn) {
+        const originalHTML = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="ph ph-check"></i> Copied!';
+
         setTimeout(() => {
-            downloadBtn.innerHTML = '<i class="ph ph-download-simple"></i> Download';
-            downloadBtn.classList.add('neo-btn-blue');
-            downloadBtn.classList.remove('bg-brand-green', 'text-white');
+            copyBtn.innerHTML = originalHTML;
         }, 3000);
     }
 }
