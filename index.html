@@ -31,14 +31,15 @@
         }
     </script>
     
-    <!-- MediaPipe Libraries -->
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-
-    <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- HTML to Canvas for PNG Image Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
         body {
@@ -83,7 +84,6 @@
         .habit-checkbox:disabled { opacity: 0.3; background-color: #D1CCC4; cursor: not-allowed !important; }
         .habit-checkbox:disabled:active { transform: none; box-shadow: 2px 2px 0px 0px #0F172A; }
         
-        /* New CSS for smaller sub-habit checkboxes */
         .subhabit-checkbox { appearance: none; width: 18px; height: 18px; border: 2px solid #0F172A; border-radius: 4px; background-color: #fff; position: relative; box-shadow: 2px 2px 0px 0px #0F172A; transition: all 0.1s; cursor: pointer; }
         .subhabit-checkbox:checked { background-color: #1E3A8A; }
         .subhabit-checkbox:checked::after { content: '✓'; position: absolute; color: white; font-weight: bold; font-size: 12px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
@@ -94,6 +94,7 @@
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-start p-4 lg:p-8">
 
+    <!-- Auth Gate -->
     <div id="authGate" class="fixed inset-0 z-[100] bg-beige flex flex-col items-center justify-center p-4 transition-opacity duration-300">
         <div class="max-w-md w-full neo-panel p-10 bg-white flex flex-col items-center text-center shadow-[12px_12px_0px_0px_#0F172A]">
             <div class="bg-navy text-white p-4 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] mb-6">
@@ -117,7 +118,7 @@
         </div>
     </div>
 
-    <!-- Summary Modal UPGRADED -->
+    <!-- Summary Modal -->
     <div id="summaryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-beige/80 backdrop-blur-sm hidden transition-opacity">
         <div class="neo-panel p-8 max-w-lg w-full text-center flex flex-col gap-4">
             <h2 class="text-3xl font-display font-black text-navy uppercase tracking-widest border-b-4 border-navy pb-4">Session Terminated</h2>
@@ -152,20 +153,21 @@
         </div>
     </div>
 
-    <!-- AI Report Modal -->
-    <div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center bg-beige/80 backdrop-blur-sm hidden transition-opacity">
-        <div class="neo-panel p-8 max-w-lg w-full text-center">
+    <!-- AI Report Image Modal -->
+    <div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center bg-beige/80 backdrop-blur-sm hidden transition-opacity overflow-y-auto pt-10 pb-10">
+        <div class="neo-panel p-8 max-w-xl w-full text-center my-auto">
             <h2 class="text-3xl font-display font-black mb-2 text-navy uppercase tracking-widest border-b-4 border-navy pb-4 flex items-center justify-center gap-3">
                 <i class="ph-fill ph-receipt text-brand-blue"></i> Focus Receipt
             </h2>
-            <div class="my-4">
-                <!-- Visual container for the receipt -->
+            
+            <!-- Wrapper for the image rendering -->
+            <div class="my-6 flex justify-center w-full overflow-hidden" id="reportVisualWrapper">
                 <div id="reportVisual" class="w-full"></div>
-                <textarea id="reportText" class="hidden"></textarea>
             </div>
-            <div class="flex gap-4">
-                <button id="copyBtn" onclick="copyReport()" class="neo-btn neo-btn-blue py-3 px-6 flex-1 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                    <i class="ph ph-copy"></i> Copy Text
+            
+            <div class="flex gap-4 mt-6">
+                <button id="downloadBtn" onclick="downloadReportImage()" class="neo-btn neo-btn-blue py-3 px-6 flex-1 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                    <i class="ph ph-download-simple"></i> Save PNG
                 </button>
                 <button onclick="closeReport()" class="neo-btn neo-btn-white py-3 px-6 flex-1 rounded-lg">Close</button>
             </div>
@@ -287,7 +289,6 @@
                     </button>
                 </div>
                 
-                <!-- Fixed Video Container: Forces a hard black background to eliminate white/pale letterboxing -->
                 <div class="neo-panel overflow-hidden relative aspect-video flex items-center justify-center w-full" style="background-color: #0F172A; border-color: #0F172A;">
                     <video id="input_video" autoplay playsinline muted class="hidden"></video>
                     <canvas id="output_canvas" class="absolute inset-0 w-full h-full object-contain hidden z-10"></canvas>
@@ -312,7 +313,7 @@
                     </div>
                 </div>
 
-                <!-- Session History Panel -->
+                <!-- Session History -->
                 <div class="neo-panel p-5 flex flex-col bg-white max-h-64">
                     <h3 class="text-[11px] font-black text-navy-light mb-4 uppercase tracking-[0.2em] font-display flex items-center gap-2 border-b-2 border-navy pb-2">
                         <i class="ph ph-clock-counter-clockwise text-brand-blue text-lg"></i> Session History
@@ -384,9 +385,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 submitBtn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-xl"></i> Locking In...';
                 
                 try {
-                    // Send the captured lead to your live Formspree dashboard
                     const formUrl = 'https://formspree.io/f/xdawjpee';
-                    
                     await fetch(formUrl, {
                         method: 'POST',
                         headers: {
@@ -417,36 +416,58 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // --- GLOBAL CLICK LISTENER: COLLAPSE SUB-HABITS ---
+    document.addEventListener('click', (e) => {
+        const habitList = document.getElementById('habitList');
+        // Close if click is outside habit list AND not on a button that adds habits
+        if (habitList && !habitList.contains(e.target) && !e.target.closest('#habitInput') && !e.target.closest('button[onclick="addHabit()"]')) {
+            let changed = false;
+            habits.forEach(h => {
+                if (h.isExpanded) {
+                    h.isExpanded = false;
+                    changed = true;
+                }
+            });
+            if (changed) {
+                saveHabits();
+            }
+        }
+    });
 });
 
-// --- Core Time & Persistence Logic ---
-function getMondayOfCurrentWeek(date) {
+// --- CORE TIME & PERSISTENCE LOGIC (FIXED TIMEZONE BUGS) ---
+// Generates a robust string identifier for the week (e.g., "2026-4-20") 
+// to prevent millisecond/timezone drift bugs overnight.
+function getWeekKey(date) {
     const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
-    return new Date(d.setDate(diff)).setHours(0,0,0,0);
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d.setDate(diff));
+    return `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`;
 }
 
-let appMeta = JSON.parse(localStorage.getItem('acuityMeta')) || { currentWeekStart: getMondayOfCurrentWeek(new Date()) };
+let appMeta = JSON.parse(localStorage.getItem('acuityMeta')) || { currentWeekStart: getWeekKey(new Date()) };
 let habits = JSON.parse(localStorage.getItem('acuityHabits')) || [];
 let tasks = JSON.parse(localStorage.getItem('acuityTasksList')) || [];
-let sessions = JSON.parse(localStorage.getItem('acuitySessions')) || []; // ADDED SESSIONS
+let sessions = JSON.parse(localStorage.getItem('acuitySessions')) || []; 
 
 function checkWeeklyRollover() {
-    const thisMonday = getMondayOfCurrentWeek(new Date());
-    if (appMeta.currentWeekStart !== thisMonday) {
+    const currentKey = getWeekKey(new Date());
+    
+    if (appMeta.currentWeekStart !== currentKey) {
         console.log("New week detected! Archiving last week's data...");
         habits.forEach(h => {
             h.lastWeekCount = h.days.filter(Boolean).length;
             h.days = [false, false, false, false, false, false, false];
-            // CRITICAL FIX: Reset subhabits on new week too
             if (h.subhabits) {
                 h.subhabits.forEach(sub => {
                     sub.days = [false, false, false, false, false, false, false];
                 });
             }
         });
-        appMeta.currentWeekStart = thisMonday;
+        appMeta.currentWeekStart = currentKey;
         localStorage.setItem('acuityMeta', JSON.stringify(appMeta));
         localStorage.setItem('acuityHabits', JSON.stringify(habits));
     }
@@ -461,9 +482,12 @@ if (dateDisplay) {
     const today = new Date();
     dateDisplay.innerText = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     
-    // Calculate and display the Mon - Sun range for the current week
     if (weekDisplay) {
-        const monday = new Date(getMondayOfCurrentWeek(today));
+        const monday = new Date();
+        const day = monday.getDay();
+        const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
+        monday.setDate(diff);
+        
         const sunday = new Date(monday);
         sunday.setDate(monday.getDate() + 6);
         
@@ -494,26 +518,27 @@ function addHabit() {
     const title = input.value.trim();
     if(!title) return;
 
-    // Added isExpanded property for collapsible UI
     habits.push({ id: generateId(), title: title, days: [false, false, false, false, false, false, false], lastWeekCount: 0, subhabits: [], isExpanded: false });
     input.value = '';
     saveHabits();
 }
 
 function toggleHabitExpansion(habitId, forceOpen = false) {
-    const habit = habits.find(h => h.id === habitId);
-    if (habit) {
-        habit.isExpanded = forceOpen ? true : !habit.isExpanded;
-        saveHabits();
-        
-        // Auto-focus input if we just clicked "Add Sub-Habit"
-        if (habit.isExpanded) {
-            setTimeout(() => {
-                const input = document.getElementById(`subhabitInput-${habit.id}`);
-                if(input) input.focus();
-            }, 50);
+    // Small timeout to prevent the document listener from instantly catching the click
+    setTimeout(() => {
+        const habit = habits.find(h => h.id === habitId);
+        if (habit) {
+            habit.isExpanded = forceOpen ? true : !habit.isExpanded;
+            saveHabits();
+            
+            if (habit.isExpanded) {
+                setTimeout(() => {
+                    const input = document.getElementById(`subhabitInput-${habit.id}`);
+                    if(input) input.focus();
+                }, 50);
+            }
         }
-    }
+    }, 10);
 }
 
 function updateMainHabitStatus(habit) {
@@ -562,7 +587,6 @@ function addSubhabit(habitId) {
         updateMainHabitStatus(habit);
         saveHabits();
         
-        // Refocus to quickly add multiple sub-habits
         setTimeout(() => {
             const newInput = document.getElementById(`subhabitInput-${habit.id}`);
             if(newInput) newInput.focus();
@@ -610,12 +634,10 @@ function updateTrends() {
         lastWeekTotal += (h.lastWeekCount || 0);
     });
 
-    // CRITICAL FIX: The Pacing Algorithm
     const today = new Date();
     const currentDayIndex = (today.getDay() + 6) % 7; 
     const elapsedDays = currentDayIndex + 1;
 
-    // NO BASELINE: Calculate raw completion rate for the first week
     if (lastWeekTotal === 0) {
         if (currentWeekTotal === 0) {
             trendDisplay.innerHTML = `0% <i class="ph ph-minus"></i>`;
@@ -631,7 +653,6 @@ function updateTrends() {
         return;
     }
 
-    // BASELINE EXISTS: Calculate expected pace based on elapsed days
     const expectedLastWeekWTD = (lastWeekTotal / 7) * elapsedDays;
     let percentChange = 0;
     
@@ -657,7 +678,6 @@ function updateTrends() {
 }
 
 function renderHabits() {
-    // CRITICAL FIX: Dynamically verify weekly rollover every time the table renders
     checkWeeklyRollover();
 
     const list = document.getElementById('habitList');
@@ -678,12 +698,11 @@ function renderHabits() {
         habit.subhabits = habit.subhabits || []; 
         const totalSubs = habit.subhabits.length;
         
-        // 1. Generate Smart Expander Header
         let expanderHTML = '';
         if (totalSubs > 0) {
             expanderHTML = `
                 <div class="mt-1">
-                    <button onclick="toggleHabitExpansion('${habit.id}')" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors">
+                    <button type="button" onclick="toggleHabitExpansion('${habit.id}')" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors">
                         <i class="ph ${habit.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>
                         ${totalSubs} Sub-Habits
                     </button>
@@ -692,14 +711,13 @@ function renderHabits() {
         } else {
             expanderHTML = `
                 <div class="mt-1">
-                    <button onclick="toggleHabitExpansion('${habit.id}', true)" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity">
+                    <button type="button" onclick="toggleHabitExpansion('${habit.id}', true)" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity">
                         <i class="ph ph-plus text-sm"></i> Add Sub-Habit
                     </button>
                 </div>
             `;
         }
 
-        // 2. Generate Main Habit Checkboxes (Unlocked for future days)
         let mainCheckboxesHTML = '';
         for(let i=0; i<7; i++) {
             const isFutureDay = i > currentDayIndex;
@@ -707,7 +725,6 @@ function renderHabits() {
             mainCheckboxesHTML += `<td class="text-center py-4"><input type="checkbox" class="habit-checkbox" ${habit.days[i] ? 'checked' : ''} ${disabledAttr} onchange="toggleHabitDay('${habit.id}', ${i})"></td>`;
         }
 
-        // 3. Generate Subhabit Checkboxes (Only if expanded & Unlocked for future days)
         let subhabitsHTML = '';
         let addSubhabitHTML = '';
 
@@ -727,7 +744,7 @@ function renderHabits() {
                             </td>
                             ${subCheckboxesHTML}
                             <td class="text-right py-2 pr-2">
-                                <button onclick="deleteSubhabit('${habit.id}', '${sub.id}')" class="opacity-0 group-hover/sub:opacity-100 text-navy-light hover:text-brand-red transition-opacity"><i class="ph ph-x"></i></button>
+                                <button type="button" onclick="deleteSubhabit('${habit.id}', '${sub.id}')" class="opacity-0 group-hover/sub:opacity-100 text-navy-light hover:text-brand-red transition-opacity"><i class="ph ph-x"></i></button>
                             </td>
                         </tr>
                     `;
@@ -739,7 +756,7 @@ function renderHabits() {
                     <td class="py-2 pl-8 pb-4">
                         <div class="flex items-center gap-2 max-w-[200px]">
                             <input type="text" id="subhabitInput-${habit.id}" class="neo-input text-[10px] px-2 py-1.5 w-full rounded font-bold text-navy" placeholder="Add sub-habit..." onkeypress="if(event.key === 'Enter') addSubhabit('${habit.id}')">
-                            <button onclick="addSubhabit('${habit.id}')" class="neo-btn neo-btn-blue px-2 py-1.5 rounded text-[10px]"><i class="ph ph-plus"></i></button>
+                            <button type="button" onclick="addSubhabit('${habit.id}')" class="neo-btn neo-btn-blue px-2 py-1.5 rounded text-[10px]"><i class="ph ph-plus"></i></button>
                         </div>
                     </td>
                     <td colspan="8"></td>
@@ -747,7 +764,6 @@ function renderHabits() {
             `;
         }
 
-        // Combine into table
         list.innerHTML += `
             <tr class="hover:bg-white transition-colors ${habit.isExpanded ? 'bg-white' : ''}">
                 <td class="py-4 font-bold text-navy text-lg leading-tight">
@@ -756,7 +772,7 @@ function renderHabits() {
                 </td>
                 ${mainCheckboxesHTML}
                 <td class="text-right py-4 pr-2">
-                    <button onclick="deleteHabit('${habit.id}')" class="text-navy-light hover:text-brand-red transition-colors"><i class="ph ph-trash text-xl"></i></button>
+                    <button type="button" onclick="deleteHabit('${habit.id}')" class="text-navy-light hover:text-brand-red transition-colors"><i class="ph ph-trash text-xl"></i></button>
                 </td>
             </tr>
             ${subhabitsHTML}
@@ -768,7 +784,6 @@ function renderHabits() {
     updateTrends();
 }
 
-// Weekly Consistency Graph Logic
 const habitsCanvas = document.getElementById('habitsGraphCanvas');
 const habitsCtx = habitsCanvas ? habitsCanvas.getContext('2d') : null;
 
@@ -792,8 +807,6 @@ function drawHabitsGraph() {
     });
 
     const maxHabits = Math.max(habits.length, 1);
-    
-    // Dynamically calculate visible days so future days are completely excluded from the graph
     const today = new Date();
     const currentDayIndex = (today.getDay() + 6) % 7; 
     const daysToShow = currentDayIndex + 1;
@@ -823,7 +836,6 @@ function drawHabitsGraph() {
             habitsCtx.fillStyle = '#0F172A';
             habitsCtx.fillText(completedCounts[i], x, y - 8);
         } else {
-            // Draw a clean baseline placeholder for past/current days with 0 completions
             habitsCtx.strokeStyle = '#0F172A';
             habitsCtx.lineWidth = 2;
             habitsCtx.beginPath();
@@ -850,7 +862,6 @@ function addTask() {
     const title = titleInput.value.trim();
     if(!title) return;
 
-    // Added isExpanded property to keep UI clean by default
     tasks.push({ id: generateId(), title: title, deadline: dateInput.value, completed: false, completedAt: null, subtasks: [], isExpanded: false });
     titleInput.value = ''; dateInput.value = '';
     saveTasks();
@@ -862,7 +873,6 @@ function toggleTaskExpansion(taskId, forceOpen = false) {
         task.isExpanded = forceOpen ? true : !task.isExpanded;
         saveTasks();
         
-        // Auto-focus input if we just clicked "Add Subtask"
         if (task.isExpanded && !task.completed) {
             setTimeout(() => {
                 const input = document.getElementById(`subtaskInput-${task.id}`);
@@ -890,11 +900,10 @@ function addSubtask(taskId) {
     if (task) {
         task.subtasks = task.subtasks || [];
         task.subtasks.push({ id: generateId(), title: title, completed: false });
-        task.isExpanded = true; // Keep expanded while adding
+        task.isExpanded = true;
         updateMainTaskStatus(task);
         saveTasks();
 
-        // Refocus input to quickly add multiple subtasks in a row
         setTimeout(() => {
             const newInput = document.getElementById(`subtaskInput-${task.id}`);
             if(newInput) newInput.focus();
@@ -928,7 +937,6 @@ function toggleTaskComplete(id) {
     if(task) {
         task.completed = !task.completed;
         task.completedAt = task.completed ? Date.now() : null;
-        // Sync all subtasks to match the main task's new state
         if (task.subtasks && task.subtasks.length > 0) {
             task.subtasks.forEach(s => s.completed = task.completed);
         }
@@ -954,7 +962,6 @@ function saveTasks() {
     renderTasks();
 }
 
-// --- SESSION HISTORY LOGIC ---
 function renderSessions() {
     const list = document.getElementById('sessionHistoryList');
     if(!list) return;
@@ -1013,7 +1020,6 @@ function renderTasks() {
         const totalSubs = task.subtasks.length;
         const doneSubs = task.subtasks.filter(s => s.completed).length;
 
-        // 1. Generate the Smart Expander Header
         let expanderHTML = '';
         if (totalSubs > 0) {
             expanderHTML = `
@@ -1034,7 +1040,6 @@ function renderTasks() {
             `;
         }
 
-        // 2. Generate Subtasks & Input (Only if expanded)
         let subtasksHTML = '';
         let addSubtaskHTML = '';
 
@@ -1122,7 +1127,7 @@ let lastVideoTime = -1;
 
 // Sleep & Timeout vars
 let sleepStartTime = 0;
-const SLEEP_THRESHOLD_MS = 3000; // UPDATED to 3 seconds
+const SLEEP_THRESHOLD_MS = 3000; 
 let lastNotificationTime = 0;
 
 let sessionTimer = null;
@@ -1147,7 +1152,6 @@ function requestNotificationPermission() {
 function sendNotification(title, body) {
     if ("Notification" in window && Notification.permission === "granted") {
         const now = Date.now();
-        // Throttle to prevent spamming
         if (now - lastNotificationTime > 10000) { 
             new Notification(title, { 
                 body: body,
@@ -1328,14 +1332,12 @@ function updateStateUI() {
     if (newState !== currentState) {
         let justReturned = false;
         
-        // Break Resumed
         if (currentState === 'missing' && (newState === 'focused' || newState === 'standby' || newState === 'distracted')) {
             playReturnSound();
             justReturned = true;
             sendNotification("Flow Resumed", "Welcome back. Telemetry locked on.");
         }
 
-        // Sleep Triggered: Retroactively correct the 3 seconds!
         if (newState === 'sleeping') {
             if (onCameraSec >= 3) {
                 onCameraSec -= 3;
@@ -1423,17 +1425,14 @@ function onResults(results) {
 
     if(!canvasElement || !canvasCtx || !videoElement.videoWidth) return;
     
-    // Set canvas exact dimensions to match native video stream to prevent stretching
     canvasElement.width = videoElement.videoWidth;
     canvasElement.height = videoElement.videoHeight;
     
     canvasCtx.save();
     
-    // Fill background with solid dark color to prevent pale transparency bugs
     canvasCtx.fillStyle = '#0F172A';
     canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
     
-    // Draw the native video frame
     if (results.image) {
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
     }
@@ -1441,7 +1440,6 @@ function onResults(results) {
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
         const landmarks = results.multiFaceLandmarks[0];
         
-        // Draw sharp, high-contrast tracking lines (Eliminated the pale mesh filter)
         drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#047857', lineWidth: 3}); 
         drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#047857', lineWidth: 3}); 
         drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_IRIS, {color: '#0F172A', lineWidth: 2}); 
@@ -1471,7 +1469,6 @@ async function processVideoFrame() {
     try {
         if (videoElement && videoElement.readyState >= 2 && faceMesh && videoElement.currentTime !== lastVideoTime) {
             lastVideoTime = videoElement.currentTime;
-            // Send the video element directly to MediaPipe (Bypassing offscreen canvas alpha issues)
             await faceMesh.send({ image: videoElement });
         }
     } catch (e) {
@@ -1509,7 +1506,6 @@ async function initModel() {
             videoElement.muted = true;
             videoElement.playsInline = true;
             videoElement.classList.remove('hidden');
-            // Keep in DOM for auto-exposure to work, but hide visually with 1% opacity behind canvas
             videoElement.style.cssText = 'position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; opacity: 0.01; pointer-events: none;';
         }
 
@@ -1539,9 +1535,6 @@ async function initModel() {
 
         if (loadingTextObj) loadingTextObj.innerText = "4/4: COMPILING AI ENGINE (WAIT FOR IT)...";
         
-        requestNotificationPermission(); 
-        initAudio(); 
-        
         isRunning = true;
         processVideoFrame();
 
@@ -1552,12 +1545,14 @@ async function initModel() {
         
         let stepInfo = loadingTextObj ? `\nFailed at: ${loadingTextObj.innerText}` : "";
         
-        if (error.name === "NotFoundError" || error.name === "OverconstrainedError") {
-            alert("HARDWARE ERROR: Windows cannot detect any physical webcam plugged in." + stepInfo);
+        if (error.message && error.message.toLowerCase().includes("timeout")) {
+            alert("HARDWARE TIMEOUT: Your webcam is taking too long to start. It is likely being used by another app (like Zoom, OBS, or a Screen Recorder). Please close them and refresh." + stepInfo);
+        } else if (error.name === "NotFoundError" || error.name === "OverconstrainedError") {
+            alert("HARDWARE ERROR: We cannot detect any physical webcam plugged into your device." + stepInfo);
         } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-            alert("HARDWARE CONFLICT: Your camera is blocked by Antivirus or being used by Zoom/Teams/Discord/OBS." + stepInfo);
+            alert("HARDWARE CONFLICT: Your camera is blocked by Antivirus or actively being used by another application." + stepInfo);
         } else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-            alert("PERMISSION ERROR: You blocked camera access in your browser settings." + stepInfo);
+            alert("PERMISSION ERROR: You blocked camera access in your browser settings. Please click the camera icon in your URL bar to allow it." + stepInfo);
         } else {
             alert("Initialization Failed: " + (error.message || "Unknown error.") + stepInfo);
         }
@@ -1646,7 +1641,6 @@ function showSummary() {
     const summaryModal = document.getElementById('summaryModal');
     if(summaryModal) summaryModal.classList.remove('hidden');
 
-    // --- SAVE SESSION LOGIC ---
     if (totalTimeSec > 10) {
         sessions.unshift({
             id: generateId(),
@@ -1672,12 +1666,10 @@ function closeSummary() {
 }
 
 function generateAIReport() {
-    const thisMonday = getMondayOfCurrentWeek(new Date());
+    const thisMondayTimestamp = new Date(getWeekKey(new Date())).getTime();
     
-    // 1. Only count tasks that were completed THIS WEEK
-    let completedTasks = tasks.filter(t => t.completed && t.completedAt >= thisMonday).length;
+    let completedTasks = tasks.filter(t => t.completed && t.completedAt >= thisMondayTimestamp).length;
     
-    // 2. Habits are already scoped to the current week via the rollover function
     let currentWeekHabits = 0; let lastWeekHabits = 0;
     habits.forEach(h => {
         currentWeekHabits += h.days.filter(Boolean).length;
@@ -1685,29 +1677,24 @@ function generateAIReport() {
     });
     
     let percentChange = 0;
-    let trendStr = "";
     if (lastWeekHabits > 0) {
         percentChange = Math.round(((currentWeekHabits - lastWeekHabits) / lastWeekHabits) * 100);
-        trendStr = percentChange >= 0 ? `(+${percentChange}% vs last week 📈)` : `(${percentChange}% vs last week 📉)`;
     } else if (lastWeekHabits === 0 && currentWeekHabits > 0) {
         percentChange = 100;
-        trendStr = `(+100% vs last week 📈)`;
     }
 
-    // 3. Calculate Average Study Session Time per day (THIS WEEK ONLY)
-    const thisWeekSessions = sessions.filter(s => s.timestamp >= thisMonday);
+    const thisWeekSessions = sessions.filter(s => s.timestamp >= thisMondayTimestamp);
     const totalSessionSecondsThisWeek = thisWeekSessions.reduce((sum, s) => sum + s.totalTime, 0);
     
     const today = new Date();
     const currentDayIndex = (today.getDay() + 6) % 7; 
-    const elapsedDays = currentDayIndex + 1; // Only calculates based on days that have passed
+    const elapsedDays = currentDayIndex + 1; 
     
-    const avgSecondsPerDay = Math.round(totalSessionSecondsThisWeek / elapsedDays);
+    const avgSecondsPerDay = Math.round(totalSessionSecondsThisWeek / elapsedDays) || 0;
     const avgMins = Math.floor(avgSecondsPerDay / 60);
     const avgSecs = String(avgSecondsPerDay % 60).padStart(2, '0');
     const avgTimeStr = `${avgMins}m ${avgSecs}s`;
 
-    // 4. Generate AI Insight
     let insight = "";
     if (completedTasks > 5 && currentWeekHabits > lastWeekHabits) insight = "Absolutely locked in. Dominating objectives and outworking the competition. ⚡";
     else if (currentWeekHabits > 10) insight = "Relentless consistency. The daily systems are paying off massively. 🧱";
@@ -1715,33 +1702,38 @@ function generateAIReport() {
     else if (currentWeekHabits === 0 && completedTasks === 0) insight = "System resting. Ready to attack the next deep work session. 🔋";
     else insight = "Maintaining the baseline. Focusing on ruthless execution. 🧠";
 
-    // 5. Construct Visual Receipt
+    // Visual HTML optimized for PNG export via html2canvas
     const visualHTML = `
-        <div class="bg-white border-[3px] border-navy shadow-[4px_4px_0px_0px_#0F172A] rounded-xl p-5 text-left relative overflow-hidden">
+        <div id="exportableReport" class="bg-[#ECEAE4] p-6 text-left mx-auto relative shadow-[4px_4px_0px_0px_#0F172A] border-[3px] border-navy rounded-xl" style="width: 480px; box-sizing: border-box;">
             <div class="absolute -right-4 -top-4 opacity-10 text-8xl">✨</div>
             
-            <div class="space-y-3 font-mono font-bold text-sm text-navy relative z-10">
+            <div class="border-b-[3px] border-navy pb-3 mb-4 flex justify-between items-center relative z-10">
+                <h3 class="font-display font-black text-2xl text-navy uppercase tracking-widest">LockIn Receipt</h3>
+                <span class="font-mono text-xs font-bold text-navy-light">${new Date().toLocaleDateString()}</span>
+            </div>
+            
+            <div class="space-y-4 font-mono font-bold text-sm text-navy relative z-10">
                 <div class="flex justify-between items-center border-b-[3px] border-dashed border-navy/20 pb-2">
-                    <span class="flex items-center gap-2"><i class="ph-fill ph-target text-brand-red text-lg"></i> Tasks Crushed</span>
-                    <span class="text-lg bg-brand-blue text-white px-2 py-0.5 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-navy">${completedTasks}</span>
+                    <span class="flex items-center gap-2"><i class="ph-fill ph-target text-brand-red text-xl"></i> Tasks Crushed</span>
+                    <span class="text-xl bg-brand-blue text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-navy">${completedTasks}</span>
                 </div>
                 <div class="flex justify-between items-center border-b-[3px] border-dashed border-navy/20 pb-2">
-                    <span class="flex items-center gap-2"><i class="ph-fill ph-plant text-brand-green text-lg"></i> Habits Watered</span>
-                    <span class="text-lg bg-brand-green text-white px-2 py-0.5 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-navy">${currentWeekHabits}</span>
+                    <span class="flex items-center gap-2"><i class="ph-fill ph-plant text-brand-green text-xl"></i> Habits Watered</span>
+                    <span class="text-xl bg-brand-green text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-navy">${currentWeekHabits}</span>
                 </div>
                 <div class="flex justify-between items-center border-b-[3px] border-dashed border-navy/20 pb-2">
-                    <span class="flex items-center gap-2"><i class="ph-fill ph-hourglass-medium text-brand-blue text-lg"></i> Daily Avg.</span>
-                    <span class="text-lg bg-navy text-white px-2 py-0.5 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-navy">${avgTimeStr}</span>
+                    <span class="flex items-center gap-2"><i class="ph-fill ph-hourglass-medium text-brand-blue text-xl"></i> Daily Avg.</span>
+                    <span class="text-xl bg-navy text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-navy">${avgTimeStr}</span>
                 </div>
-                <div class="flex justify-between items-center pb-1 mt-1">
-                    <span class="flex items-center gap-2"><i class="ph-fill ph-fire text-brand-amber text-lg"></i> Momentum</span>
-                    <span class="text-brand-amber text-md font-black bg-orange-100 px-2 py-1 rounded border-2 border-brand-amber shadow-[2px_2px_0px_0px_#D97706]">${percentChange > 0 ? '+'+percentChange : percentChange}%</span>
+                <div class="flex justify-between items-center pb-1 mt-2">
+                    <span class="flex items-center gap-2"><i class="ph-fill ph-fire text-brand-amber text-xl"></i> Momentum</span>
+                    <span class="text-brand-amber text-lg font-black bg-orange-100 px-3 py-1 rounded border-2 border-brand-amber shadow-[2px_2px_0px_0px_#D97706]">${percentChange > 0 ? '+'+percentChange : percentChange}%</span>
                 </div>
             </div>
 
-            <div class="mt-5 bg-beige-dark border-[3px] border-navy p-4 rounded-lg shadow-[inset_2px_2px_0px_0px_rgba(0,0,0,0.1)] relative z-10">
-                <p class="text-[10px] uppercase font-black tracking-widest text-navy mb-1 flex items-center gap-1"><i class="ph-fill ph-robot text-brand-blue text-sm"></i> AI Vibe Check</p>
-                <p class="text-sm font-bold leading-tight">"${insight}"</p>
+            <div class="mt-6 bg-[#D1CCC4] border-[3px] border-navy p-4 rounded-lg shadow-[inset_2px_2px_0px_0px_rgba(0,0,0,0.1)] relative z-10">
+                <p class="text-[10px] uppercase font-black tracking-widest text-navy mb-2 flex items-center gap-1"><i class="ph-fill ph-robot text-brand-blue text-sm"></i> AI Vibe Check</p>
+                <p class="text-base font-bold leading-tight">"${insight}"</p>
             </div>
         </div>
     `;
@@ -1749,32 +1741,53 @@ function generateAIReport() {
     const reportVisual = document.getElementById('reportVisual');
     if(reportVisual) reportVisual.innerHTML = visualHTML;
 
-    // 6. Construct Text File for Download
-    const report = `🔥 LockIn | Weekly Execution Report\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎯 Objectives Secured: ${completedTasks}\n✅ Habits Maintained: ${currentWeekHabits} ${trendStr}\n⏳ Avg. Daily Study: ${avgTimeStr}\n⚡ AI Insight: ${insight}\n\nOutwork everyone.\n#LockedIn #DeepWork`;
-
-    const reportText = document.getElementById('reportText');
-    if(reportText) reportText.value = report;
-    
     const reportModal = document.getElementById('reportModal');
     if(reportModal) reportModal.classList.remove('hidden');
 }
 
-function copyReport() {
-    const textElement = document.getElementById('reportText');
-    if(!textElement) return;
-
-    textElement.select();
-    document.execCommand('copy');
-
-    const copyBtn = document.getElementById('copyBtn');
-    if (copyBtn) {
-        const originalHTML = copyBtn.innerHTML;
-        copyBtn.innerHTML = '<i class="ph ph-check"></i> Copied!';
-
-        setTimeout(() => {
-            copyBtn.innerHTML = originalHTML;
-        }, 3000);
+// Generate high-resolution PNG using html2canvas
+async function downloadReportImage() {
+    const reportNode = document.getElementById('exportableReport');
+    if (!reportNode) return;
+    
+    const downloadBtn = document.getElementById('downloadBtn');
+    const originalText = downloadBtn.innerHTML;
+    
+    // Show loading state
+    downloadBtn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> Rendering Image...';
+    downloadBtn.disabled = true;
+    
+    try {
+        const canvas = await html2canvas(reportNode, {
+            scale: 2, // High resolution
+            useCORS: true,
+            backgroundColor: null
+        });
+        
+        // Trigger download
+        const link = document.createElement('a');
+        const dateStr = new Date().toISOString().split('T')[0];
+        link.download = `LockIn_Receipt_${dateStr}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        // Success state
+        downloadBtn.innerHTML = '<i class="ph ph-check"></i> Image Saved!';
+        downloadBtn.classList.remove('neo-btn-blue');
+        downloadBtn.classList.add('bg-brand-green', 'text-white', 'border-navy');
+        
+    } catch (err) {
+        console.error("Image generation failed:", err);
+        downloadBtn.innerHTML = 'Error Generating Image';
     }
+    
+    // Reset button
+    setTimeout(() => {
+        downloadBtn.innerHTML = originalText;
+        downloadBtn.disabled = false;
+        downloadBtn.classList.add('neo-btn-blue');
+        downloadBtn.classList.remove('bg-brand-green', 'text-white');
+    }, 3000);
 }
 
 function closeReport() {
