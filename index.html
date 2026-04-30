@@ -51,6 +51,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 
+    <!-- HTML to Canvas for PNG Image Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>
@@ -183,17 +186,25 @@
         </div>
     </div>
 
-    <div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center bg-base/80 backdrop-blur-sm hidden transition-opacity">
-        <div class="neo-panel p-8 max-w-lg w-full text-center">
+    <div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center bg-base/80 backdrop-blur-sm hidden transition-opacity overflow-y-auto pt-10 pb-10">
+        <div class="neo-panel p-8 max-w-xl w-full text-center my-auto">
             <h2 class="text-3xl font-display font-black mb-2 text-content uppercase tracking-widest border-b-4 border-bound pb-4 flex items-center justify-center gap-3">
-                <i class="ph ph-sparkle text-brand-blue"></i> Execution Report
+                <i class="ph-fill ph-receipt text-brand-blue"></i> Focus Receipt
             </h2>
-            <div class="my-4">
-                <textarea id="reportText" class="w-full neo-input p-4 h-48 rounded-lg font-mono text-sm resize-none text-content bg-panel"></textarea>
+            
+            <!-- Wrapper for the image rendering -->
+            <div class="my-6 flex justify-center w-full overflow-hidden" id="reportVisualWrapper">
+                <div id="reportVisual" class="w-full"></div>
             </div>
-            <div class="flex gap-4">
-                <button id="copyBtn" onclick="copyReport()" class="neo-btn neo-btn-blue py-3 px-6 flex-1 rounded-lg flex items-center justify-center gap-2">
-                    <i class="ph ph-copy"></i> Copy Report
+            
+            <textarea id="reportText" class="hidden"></textarea>
+
+            <div class="flex gap-4 mt-6">
+                <button id="downloadBtn" onclick="downloadReportImage()" class="neo-btn neo-btn-blue py-3 px-6 flex-1 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                    <i class="ph ph-download-simple"></i> Save PNG
+                </button>
+                <button id="copyBtn" onclick="copyReport()" class="neo-btn neo-btn-white py-3 px-6 flex-1 rounded-lg flex items-center justify-center gap-2">
+                    <i class="ph ph-copy"></i> Copy Text
                 </button>
                 <button onclick="closeReport()" class="neo-btn neo-btn-white py-3 px-6 flex-1 rounded-lg">Close</button>
             </div>
@@ -1751,13 +1762,27 @@
                 lastWeekHabits += (h.lastWeekCount || 0);
             });
             
+            let percentChange = 0;
             let trendStr = "";
             if (lastWeekHabits > 0) {
-                const percentChange = Math.round(((currentWeekHabits - lastWeekHabits) / lastWeekHabits) * 100);
+                percentChange = Math.round(((currentWeekHabits - lastWeekHabits) / lastWeekHabits) * 100);
                 trendStr = percentChange >= 0 ? `(+${percentChange}% vs last week 📈)` : `(${percentChange}% vs last week 📉)`;
             } else if (lastWeekHabits === 0 && currentWeekHabits > 0) {
+                percentChange = 100;
                 trendStr = `(+100% vs last week 📈)`;
             }
+
+            const thisWeekSessions = sessions.filter(s => s.timestamp >= thisMondayTimestamp);
+            const totalSessionSecondsThisWeek = thisWeekSessions.reduce((sum, s) => sum + s.totalTime, 0);
+            
+            const today = new Date();
+            const currentDayIndex = (today.getDay() + 6) % 7; 
+            const elapsedDays = currentDayIndex + 1; 
+            
+            const avgSecondsPerDay = Math.round(totalSessionSecondsThisWeek / elapsedDays) || 0;
+            const avgMins = Math.floor(avgSecondsPerDay / 60);
+            const avgSecs = String(avgSecondsPerDay % 60).padStart(2, '0');
+            const avgTimeStr = `${avgMins}m ${avgSecs}s`;
 
             let insight = "";
             if (completedTasks > 5 && currentWeekHabits > lastWeekHabits) insight = "Absolutely locked in. Dominating objectives and outworking the competition. ⚡";
@@ -1766,13 +1791,94 @@
             else if (currentWeekHabits === 0 && completedTasks === 0) insight = "System resting. Ready to attack the next deep work session. 🔋";
             else insight = "Maintaining the baseline. Focusing on ruthless execution. 🧠";
 
-            const report = `🔥 LockIn | Execution Report\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎯 Objectives Secured: ${completedTasks}\n✅ Habits Maintained: ${currentWeekHabits} ${trendStr}\n⚡ AI Insight: ${insight}\n\nOutwork everyone.\n#LockedIn #DeepWork`;
+            // Visual HTML optimized for PNG export via html2canvas
+            // Hardcoded colors ensure the export looks correct even if app is in dark mode
+            const visualHTML = `
+                <div id="exportableReport" class="bg-[#ECEAE4] p-6 text-left mx-auto relative shadow-[4px_4px_0px_0px_#0F172A] border-[3px] border-[#0F172A] rounded-xl" style="width: 480px; box-sizing: border-box; color: #0F172A;">
+                    <div class="absolute -right-4 -top-4 opacity-10 text-8xl">✨</div>
+                    
+                    <div class="border-b-[3px] border-[#0F172A] pb-3 mb-4 flex justify-between items-center relative z-10">
+                        <h3 class="font-display font-black text-2xl text-[#0F172A] uppercase tracking-widest" style="margin:0;">LockIn Receipt</h3>
+                        <span class="font-mono text-xs font-bold text-[#475569]">${new Date().toLocaleDateString()}</span>
+                    </div>
+                    
+                    <div class="space-y-4 font-mono font-bold text-sm text-[#0F172A] relative z-10">
+                        <div class="flex justify-between items-center border-b-[3px] border-dashed border-[#0F172A]/20 pb-2">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-target text-[#BE123C] text-xl"></i> Tasks Crushed</span>
+                            <span class="text-xl bg-[#1E3A8A] text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-[#0F172A]">${completedTasks}</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b-[3px] border-dashed border-[#0F172A]/20 pb-2">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-plant text-[#047857] text-xl"></i> Habits Watered</span>
+                            <span class="text-xl bg-[#047857] text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-[#0F172A]">${currentWeekHabits}</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b-[3px] border-dashed border-[#0F172A]/20 pb-2">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-hourglass-medium text-[#1E3A8A] text-xl"></i> Daily Avg.</span>
+                            <span class="text-xl bg-[#0F172A] text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-[#0F172A]">${avgTimeStr}</span>
+                        </div>
+                        <div class="flex justify-between items-center pb-1 mt-2">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-fire text-[#D97706] text-xl"></i> Momentum</span>
+                            <span class="text-[#D97706] text-lg font-black bg-orange-100 px-3 py-1 rounded border-2 border-[#D97706] shadow-[2px_2px_0px_0px_#D97706]">${percentChange > 0 ? '+'+percentChange : percentChange}%</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 bg-[#D1CCC4] border-[3px] border-[#0F172A] p-4 rounded-lg shadow-[inset_2px_2px_0px_0px_rgba(0,0,0,0.1)] relative z-10">
+                        <p class="text-[10px] uppercase font-black tracking-widest text-[#0F172A] mb-2 flex items-center gap-1"><i class="ph-fill ph-robot text-[#1E3A8A] text-sm"></i> AI Vibe Check</p>
+                        <p class="text-base font-bold leading-tight">"${insight}"</p>
+                    </div>
+                </div>
+            `;
+
+            const reportVisual = document.getElementById('reportVisual');
+            if(reportVisual) reportVisual.innerHTML = visualHTML;
+
+            const report = `🔥 LockIn | Execution Report\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎯 Objectives Secured: ${completedTasks}\n✅ Habits Maintained: ${currentWeekHabits} ${trendStr}\n⏳ Avg. Daily Study: ${avgTimeStr}\n⚡ AI Insight: ${insight}\n\nOutwork everyone.\n#LockedIn #DeepWork`;
 
             const reportText = document.getElementById('reportText');
             if(reportText) reportText.value = report;
             
             const reportModal = document.getElementById('reportModal');
             if(reportModal) reportModal.classList.remove('hidden');
+        }
+
+        // Generate high-resolution PNG using html2canvas
+        async function downloadReportImage() {
+            const reportNode = document.getElementById('exportableReport');
+            if (!reportNode) return;
+            
+            const downloadBtn = document.getElementById('downloadBtn');
+            const originalText = downloadBtn.innerHTML;
+            
+            downloadBtn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> Rendering Image...';
+            downloadBtn.disabled = true;
+            
+            try {
+                const canvas = await html2canvas(reportNode, {
+                    scale: 2, 
+                    useCORS: true,
+                    backgroundColor: null
+                });
+                
+                const link = document.createElement('a');
+                const dateStr = new Date().toISOString().split('T')[0];
+                link.download = `LockIn_Receipt_${dateStr}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                downloadBtn.innerHTML = '<i class="ph ph-check"></i> Image Saved!';
+                downloadBtn.classList.remove('neo-btn-blue');
+                downloadBtn.classList.add('bg-brand-green', 'text-white', 'border-bound');
+                
+            } catch (err) {
+                console.error("Image generation failed:", err);
+                downloadBtn.innerHTML = 'Error Generating Image';
+            }
+            
+            setTimeout(() => {
+                downloadBtn.innerHTML = originalText;
+                downloadBtn.disabled = false;
+                downloadBtn.classList.add('neo-btn-blue');
+                downloadBtn.classList.remove('bg-brand-green', 'text-white', 'border-bound');
+            }, 3000);
         }
 
         function copyReport() {
