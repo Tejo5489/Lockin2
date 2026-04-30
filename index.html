@@ -119,6 +119,13 @@
         .habit-checkbox:checked::after { content: '✓'; position: absolute; color: white; font-weight: bold; font-size: 16px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
         .habit-checkbox:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px 0px var(--color-shadow); }
         .habit-checkbox:disabled { opacity: 0.3; cursor: not-allowed !important; }
+
+        /* Sub-habit Checkbox CSS */
+        .subhabit-checkbox { appearance: none; width: 18px; height: 18px; border: 2px solid var(--color-border); border-radius: 4px; background-color: var(--color-panel); position: relative; box-shadow: 2px 2px 0px 0px var(--color-shadow); transition: all 0.1s; cursor: pointer; }
+        .subhabit-checkbox:checked { background-color: #1E3A8A; border-color: #1E3A8A; box-shadow: 2px 2px 0px 0px var(--color-shadow); }
+        .subhabit-checkbox:checked::after { content: '✓'; position: absolute; color: white; font-weight: bold; font-size: 12px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .subhabit-checkbox:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px 0px var(--color-shadow); }
+        .subhabit-checkbox:disabled { opacity: 0.3; cursor: not-allowed !important; }
     </style>
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-start p-4 lg:p-8">
@@ -325,6 +332,17 @@
                         <canvas id="graphCanvas" class="graph-canvas w-full h-full absolute inset-0"></canvas>
                     </div>
                 </div>
+                
+                <!-- NEW: Session History Panel -->
+                <div class="neo-panel p-5 flex flex-col bg-panel max-h-64">
+                    <h3 class="text-[11px] font-black text-muted mb-4 uppercase tracking-[0.2em] font-display flex items-center gap-2 border-b-2 border-bound pb-2">
+                        <i class="ph ph-clock-counter-clockwise text-brand-blue text-lg"></i> Session History
+                    </h3>
+                    <div id="sessionHistoryList" class="flex flex-col gap-3 overflow-y-auto pr-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
             </div>
             <div class="lg:col-span-4 flex flex-col gap-6">
                 <div class="neo-panel p-8 text-center bg-panelalt">
@@ -333,6 +351,7 @@
                     <div class="w-full bg-panel rounded-full h-4 border-2 border-bound overflow-hidden">
                         <div id="scoreBar" class="bg-content h-full transition-all duration-300 border-r-2 border-bound" style="width: 0%"></div>
                     </div>
+                    <p class="text-[9px] font-mono font-bold text-muted mt-4 uppercase">Pitch / Yaw / EAR / MAR Evaluation</p>
                 </div>
                 <div class="neo-panel p-6 flex-1 flex flex-col gap-4 bg-panel">
                     <h2 class="text-content text-xs font-black uppercase tracking-widest font-display border-b-2 border-bound pb-2">Execution Metrics</h2>
@@ -356,6 +375,11 @@
                             <p id="uiBreaks" class="text-3xl font-mono font-black text-brand-amber">0</p>
                         </div>
                         <i class="ph ph-coffee text-2xl text-muted"></i>
+                    </div>
+
+                    <!-- NEW: Live System Logs / Notifications -->
+                    <div id="logContainer" class="flex-1 overflow-y-auto space-y-3 pr-2 text-sm border-t-2 border-bound border-opacity-20 pt-4 mt-2 font-mono text-[11px] font-bold max-h-48">
+                        <div class="text-muted italic text-center opacity-70">System initialized. Waiting for data stream...</div>
                     </div>
                 </div>
             </div>
@@ -387,7 +411,7 @@
             if (typeof drawGraph === 'function') drawGraph();
         }
 
-        // --- AUTHENTICATION / LEAD GATE LOGIC ---
+        // --- AUTHENTICATION & GLOBAL CLICK LISTENERS ---
         document.addEventListener("DOMContentLoaded", () => {
             const authGate = document.getElementById('authGate');
             const loginForm = document.getElementById('loginForm');
@@ -401,7 +425,6 @@
                     e.preventDefault();
                     const email = document.getElementById('emailInput').value.trim();
                     const submitBtn = loginForm.querySelector('button');
-                    const originalText = submitBtn.innerHTML;
                     
                     if (email) {
                         submitBtn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-xl"></i> Locking In...';
@@ -426,6 +449,36 @@
                     }
                 });
             }
+
+            // Global Click Listener for Auto-Collapsing Menus
+            document.addEventListener('click', (e) => {
+                const habitList = document.getElementById('habitList');
+                const taskList = document.getElementById('taskList');
+                let changed = false;
+
+                if (habitList && !habitList.contains(e.target) && !e.target.closest('#habitInput') && !e.target.closest('button[onclick="addHabit()"]')) {
+                    habits.forEach(h => {
+                        if (h.isExpanded) {
+                            h.isExpanded = false;
+                            changed = true;
+                        }
+                    });
+                }
+                
+                if (taskList && !taskList.contains(e.target) && !e.target.closest('#taskInput') && !e.target.closest('button[onclick="addTask()"]')) {
+                    tasks.forEach(t => {
+                        if (t.isExpanded) {
+                            t.isExpanded = false;
+                            changed = true;
+                        }
+                    });
+                }
+
+                if (changed) {
+                    saveHabits();
+                    saveTasks();
+                }
+            });
         });
 
         // --- CORE TIME & WEEKLY ROLLOVER LOGIC ---
@@ -451,17 +504,20 @@
         function checkWeeklyRollover() {
             const currentKey = getWeekKey(new Date());
             
-            // If new user or corrupted metadata, firmly establish this week as baseline
             if (!appMeta) {
                 appMeta = { currentWeekStart: currentKey };
                 localStorage.setItem('acuityMeta', JSON.stringify(appMeta));
             } 
-            // If the key has shifted, trigger the archival rollover process
             else if (appMeta.currentWeekStart !== currentKey) {
                 console.log("New week detected! Archiving last week's data...");
                 habits.forEach(h => {
                     h.lastWeekCount = h.days.filter(Boolean).length;
                     h.days = [false, false, false, false, false, false, false];
+                    if (h.subhabits) {
+                        h.subhabits.forEach(sub => {
+                            sub.days = [false, false, false, false, false, false, false];
+                        });
+                    }
                 });
                 appMeta.currentWeekStart = currentKey;
                 localStorage.setItem('acuityMeta', JSON.stringify(appMeta));
@@ -476,12 +532,21 @@
             let changed = false;
 
             habits.forEach(h => {
-                // Force uncheck everything from tomorrow onwards
                 for (let i = currentDayIndex + 1; i < 7; i++) {
                     if (h.days[i] === true) {
                         h.days[i] = false;
                         changed = true;
                     }
+                }
+                if (h.subhabits) {
+                    h.subhabits.forEach(sub => {
+                        for (let i = currentDayIndex + 1; i < 7; i++) {
+                            if (sub.days[i] === true) {
+                                sub.days[i] = false;
+                                changed = true;
+                            }
+                        }
+                    });
                 }
             });
 
@@ -521,15 +586,84 @@
             const title = input.value.trim();
             if(!title) return;
 
-            habits.push({ id: generateId(), title: title, days: [false, false, false, false, false, false, false], lastWeekCount: 0 });
+            habits.push({ id: generateId(), title: title, days: [false, false, false, false, false, false, false], lastWeekCount: 0, subhabits: [], isExpanded: false });
             input.value = '';
             saveHabits();
+        }
+
+        function toggleHabitExpansion(habitId, forceOpen = false) {
+            setTimeout(() => {
+                const habit = habits.find(h => h.id === habitId);
+                if (habit) {
+                    habit.isExpanded = forceOpen ? true : !habit.isExpanded;
+                    saveHabits();
+                    if (habit.isExpanded) {
+                        setTimeout(() => {
+                            const input = document.getElementById(`subhabitInput-${habit.id}`);
+                            if(input) input.focus();
+                        }, 50);
+                    }
+                }
+            }, 10);
+        }
+
+        function updateMainHabitStatus(habit) {
+            if (habit.subhabits && habit.subhabits.length > 0) {
+                for (let i = 0; i < 7; i++) {
+                    habit.days[i] = habit.subhabits.every(s => s.days[i]);
+                }
+            }
         }
 
         function toggleHabitDay(habitId, dayIndex) {
             const habit = habits.find(h => h.id === habitId);
             if(habit) {
                 habit.days[dayIndex] = !habit.days[dayIndex];
+                if (habit.subhabits && habit.subhabits.length > 0) {
+                    habit.subhabits.forEach(s => s.days[dayIndex] = habit.days[dayIndex]);
+                }
+                saveHabits();
+            }
+        }
+
+        function toggleSubhabitDay(habitId, subtaskId, dayIndex) {
+            const habit = habits.find(h => h.id === habitId);
+            if (habit && habit.subhabits) {
+                const sub = habit.subhabits.find(s => s.id === subtaskId);
+                if (sub) {
+                    sub.days[dayIndex] = !sub.days[dayIndex];
+                    updateMainHabitStatus(habit); 
+                    saveHabits();
+                }
+            }
+        }
+
+        function addSubhabit(habitId) {
+            const input = document.getElementById(`subhabitInput-${habitId}`);
+            if (!input) return;
+            const title = input.value.trim();
+            if (!title) return;
+
+            const habit = habits.find(h => h.id === habitId);
+            if (habit) {
+                habit.subhabits = habit.subhabits || [];
+                habit.subhabits.push({ id: generateId(), title: title, days: [false, false, false, false, false, false, false] });
+                habit.isExpanded = true;
+                updateMainHabitStatus(habit);
+                saveHabits();
+                
+                setTimeout(() => {
+                    const newInput = document.getElementById(`subhabitInput-${habit.id}`);
+                    if(newInput) newInput.focus();
+                }, 50);
+            }
+        }
+
+        function deleteSubhabit(habitId, subtaskId) {
+            const habit = habits.find(h => h.id === habitId);
+            if (habit && habit.subhabits) {
+                habit.subhabits = habit.subhabits.filter(s => s.id !== subtaskId);
+                updateMainHabitStatus(habit);
                 saveHabits();
             }
         }
@@ -609,21 +743,88 @@
             const currentDayIndex = (today.getDay() + 6) % 7; 
 
             habits.forEach(habit => {
-                let checkboxesHTML = '';
+                habit.subhabits = habit.subhabits || [];
+                const totalSubs = habit.subhabits.length;
+
+                let expanderHTML = '';
+                if (totalSubs > 0) {
+                    expanderHTML = `
+                        <div class="mt-1">
+                            <button type="button" onclick="toggleHabitExpansion('${habit.id}')" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors">
+                                <i class="ph ${habit.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>
+                                ${totalSubs} Sub-Habits
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    expanderHTML = `
+                        <div class="mt-1">
+                            <button type="button" onclick="toggleHabitExpansion('${habit.id}', true)" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity">
+                                <i class="ph ph-plus text-sm"></i> Add Sub-Habit
+                            </button>
+                        </div>
+                    `;
+                }
+
+                let mainCheckboxesHTML = '';
                 for(let i=0; i<7; i++) {
                     const isFutureDay = i > currentDayIndex;
                     const disabledAttr = isFutureDay ? 'disabled title="Time-locked: Future date"' : '';
-                    checkboxesHTML += `<td class="text-center py-4"><input type="checkbox" class="habit-checkbox" ${habit.days[i] ? 'checked' : ''} ${disabledAttr} onchange="toggleHabitDay('${habit.id}', ${i})"></td>`;
+                    mainCheckboxesHTML += `<td class="text-center py-4"><input type="checkbox" class="habit-checkbox" ${habit.days[i] ? 'checked' : ''} ${disabledAttr} onchange="toggleHabitDay('${habit.id}', ${i})"></td>`;
+                }
+
+                let subhabitsHTML = '';
+                let addSubhabitHTML = '';
+
+                if (habit.isExpanded) {
+                    if (totalSubs > 0) {
+                        habit.subhabits.forEach(sub => {
+                            let subCheckboxesHTML = '';
+                            for(let i=0; i<7; i++) {
+                                const isFutureDay = i > currentDayIndex;
+                                const disabledAttr = isFutureDay ? 'disabled title="Time-locked: Future date"' : '';
+                                subCheckboxesHTML += `<td class="text-center py-2"><input type="checkbox" class="subhabit-checkbox mx-auto" ${sub.days[i] ? 'checked' : ''} ${disabledAttr} onchange="toggleSubhabitDay('${habit.id}', '${sub.id}', ${i})"></td>`;
+                            }
+                            subhabitsHTML += `
+                                <tr class="bg-panel hover:bg-base transition-colors group/sub">
+                                    <td class="py-2 pl-8 font-bold text-muted text-sm flex items-center gap-2 border-l-4 border-brand-blue ml-2">
+                                        <i class="ph ph-arrow-elbow-down-right"></i> <span class="${sub.days[currentDayIndex] ? 'line-through opacity-70' : ''}">${sub.title}</span>
+                                    </td>
+                                    ${subCheckboxesHTML}
+                                    <td class="text-right py-2 pr-4">
+                                        <button type="button" onclick="deleteSubhabit('${habit.id}', '${sub.id}')" class="opacity-0 group-hover/sub:opacity-100 text-muted hover:text-brand-red transition-opacity"><i class="ph ph-x"></i></button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+
+                    addSubhabitHTML = `
+                        <tr class="border-b-2 border-bound border-opacity-20 bg-panel">
+                            <td class="py-2 pl-8 pb-4 border-l-4 border-brand-blue ml-2">
+                                <div class="flex items-center gap-2 max-w-[200px]">
+                                    <input type="text" id="subhabitInput-${habit.id}" class="neo-input text-[10px] px-2 py-1.5 w-full rounded font-bold text-content" placeholder="Add sub-habit..." onkeypress="if(event.key === 'Enter') addSubhabit('${habit.id}')">
+                                    <button type="button" onclick="addSubhabit('${habit.id}')" class="neo-btn neo-btn-blue px-2 py-1.5 rounded text-[10px]"><i class="ph ph-plus"></i></button>
+                                </div>
+                            </td>
+                            <td colspan="8"></td>
+                        </tr>
+                    `;
                 }
 
                 list.innerHTML += `
-                    <tr class="border-b-2 border-bound border-opacity-20 hover:bg-base transition-colors">
-                        <td class="py-4 font-bold text-content text-lg">${habit.title}</td>
-                        ${checkboxesHTML}
-                        <td class="text-right py-4">
-                            <button onclick="deleteHabit('${habit.id}')" class="text-muted hover:text-brand-red transition-colors"><i class="ph ph-trash text-xl"></i></button>
+                    <tr class="border-b-2 border-bound border-opacity-20 hover:bg-base transition-colors ${habit.isExpanded ? 'bg-panel' : ''}">
+                        <td class="py-4 font-bold text-content text-lg leading-tight">
+                            ${habit.title}
+                            ${expanderHTML}
+                        </td>
+                        ${mainCheckboxesHTML}
+                        <td class="text-right py-4 pr-2">
+                            <button type="button" onclick="deleteHabit('${habit.id}')" class="text-muted hover:text-brand-red transition-colors"><i class="ph ph-trash text-xl"></i></button>
                         </td>
                     </tr>
+                    ${subhabitsHTML}
+                    ${addSubhabitHTML}
                 `;
             });
             
@@ -714,9 +915,75 @@
             const title = titleInput.value.trim();
             if(!title) return;
 
-            tasks.push({ id: generateId(), title: title, deadline: dateInput.value, completed: false, completedAt: null });
+            tasks.push({ id: generateId(), title: title, deadline: dateInput.value, completed: false, completedAt: null, subtasks: [], isExpanded: false });
             titleInput.value = ''; dateInput.value = '';
             saveTasks();
+        }
+
+        function toggleTaskExpansion(taskId, forceOpen = false) {
+            setTimeout(() => {
+                const task = tasks.find(t => t.id === taskId);
+                if (task) {
+                    task.isExpanded = forceOpen ? true : !task.isExpanded;
+                    saveTasks();
+                    if (task.isExpanded && !task.completed) {
+                        setTimeout(() => {
+                            const input = document.getElementById(`subtaskInput-${task.id}`);
+                            if(input) input.focus();
+                        }, 50);
+                    }
+                }
+            }, 10);
+        }
+
+        function updateMainTaskStatus(task) {
+            if (task.subtasks && task.subtasks.length > 0) {
+                const allDone = task.subtasks.every(s => s.completed);
+                task.completed = allDone;
+                task.completedAt = allDone ? Date.now() : null;
+            }
+        }
+
+        function addSubtask(taskId) {
+            const input = document.getElementById(`subtaskInput-${taskId}`);
+            if (!input) return;
+            const title = input.value.trim();
+            if (!title) return;
+            
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.subtasks = task.subtasks || [];
+                task.subtasks.push({ id: generateId(), title: title, completed: false });
+                task.isExpanded = true;
+                updateMainTaskStatus(task);
+                saveTasks();
+
+                setTimeout(() => {
+                    const newInput = document.getElementById(`subtaskInput-${task.id}`);
+                    if(newInput) newInput.focus();
+                }, 50);
+            }
+        }
+
+        function toggleSubtask(taskId, subtaskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task && task.subtasks) {
+                const subtask = task.subtasks.find(s => s.id === subtaskId);
+                if (subtask) {
+                    subtask.completed = !subtask.completed;
+                    updateMainTaskStatus(task);
+                    saveTasks();
+                }
+            }
+        }
+
+        function deleteSubtask(taskId, subtaskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task && task.subtasks) {
+                task.subtasks = task.subtasks.filter(s => s.id !== subtaskId);
+                updateMainTaskStatus(task);
+                saveTasks();
+            }
         }
 
         function toggleTaskComplete(id) {
@@ -724,6 +991,9 @@
             if(task) {
                 task.completed = !task.completed;
                 task.completedAt = task.completed ? Date.now() : null;
+                if (task.subtasks && task.subtasks.length > 0) {
+                    task.subtasks.forEach(s => s.completed = task.completed);
+                }
                 saveTasks();
             }
         }
@@ -762,20 +1032,81 @@
                 const isOverdue = dateObj && dateObj < new Date() && !task.completed;
                 const deadlineColor = task.completed ? 'text-muted' : (isOverdue ? 'text-brand-red' : 'text-brand-blue');
 
+                task.subtasks = task.subtasks || [];
+                const totalSubs = task.subtasks.length;
+                const doneSubs = task.subtasks.filter(s => s.completed).length;
+
+                let expanderHTML = '';
+                if (totalSubs > 0) {
+                    expanderHTML = `
+                        <div class="mt-1 pl-9">
+                            <button type="button" onclick="toggleTaskExpansion('${task.id}')" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors">
+                                <i class="ph ${task.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>
+                                ${doneSubs}/${totalSubs} Subtasks
+                            </button>
+                        </div>
+                    `;
+                } else if (!task.completed) {
+                    expanderHTML = `
+                        <div class="mt-1 pl-9">
+                            <button type="button" onclick="toggleTaskExpansion('${task.id}', true)" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity">
+                                <i class="ph ph-plus text-sm"></i> Add Subtask
+                            </button>
+                        </div>
+                    `;
+                }
+
+                let subtasksHTML = '';
+                let addSubtaskHTML = '';
+
+                if (task.isExpanded) {
+                    if (totalSubs > 0) {
+                        subtasksHTML = '<div class="flex flex-col gap-2 mt-3 mb-2 pl-9">';
+                        task.subtasks.forEach(sub => {
+                            subtasksHTML += `
+                                <div class="flex items-center justify-between group">
+                                    <div class="flex items-center gap-2">
+                                        <button type="button" onclick="toggleSubtask('${task.id}', '${sub.id}')" class="w-4 h-4 rounded border-2 border-bound flex items-center justify-center bg-panel shrink-0 transition-colors ${sub.completed ? 'bg-content text-panel' : ''}">
+                                            ${sub.completed ? '<i class="ph ph-check text-[10px] font-bold"></i>' : ''}
+                                        </button>
+                                        <span class="text-sm font-bold text-content ${sub.completed ? 'line-through opacity-50' : ''}">${sub.title}</span>
+                                    </div>
+                                    <button type="button" onclick="deleteSubtask('${task.id}', '${sub.id}')" class="opacity-0 group-hover:opacity-100 text-muted hover:text-brand-red transition-opacity"><i class="ph ph-x"></i></button>
+                                </div>
+                            `;
+                        });
+                        subtasksHTML += '</div>';
+                    }
+
+                    if (!task.completed) {
+                        addSubtaskHTML = `
+                            <div class="flex items-center gap-2 mt-2 pl-9 mb-2">
+                                <input type="text" id="subtaskInput-${task.id}" placeholder="Add subtask..." class="neo-input text-xs px-3 py-2 w-full rounded font-bold text-content" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')">
+                                <button type="button" onclick="addSubtask('${task.id}')" class="neo-btn neo-btn-blue px-3 py-2 rounded text-xs"><i class="ph ph-plus"></i></button>
+                            </div>
+                        `;
+                    }
+                }
+
                 list.innerHTML += `
                     <div class="neo-panel p-5 flex flex-col justify-between ${task.completed ? 'bg-panelalt opacity-60' : 'bg-panel'}">
-                        <div class="flex items-start justify-between gap-3 mb-4">
-                            <div class="flex items-start gap-3">
-                                <button onclick="toggleTaskComplete('${task.id}')" class="mt-1 w-6 h-6 rounded border-2 border-bound flex items-center justify-center bg-panel ${task.completed ? 'bg-content text-panel' : ''}">
-                                    ${task.completed ? '<i class="ph ph-check font-bold"></i>' : ''}
-                                </button>
-                                <div>
-                                    <h4 class="font-bold text-content text-xl leading-tight ${task.completed ? 'line-through text-muted' : ''}">${task.title}</h4>
+                        <div>
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-start gap-3 w-full">
+                                    <button type="button" onclick="toggleTaskComplete('${task.id}')" class="mt-1 w-6 h-6 rounded border-2 border-bound flex items-center justify-center bg-panel shrink-0 ${task.completed ? 'bg-content text-panel' : ''}">
+                                        ${task.completed ? '<i class="ph ph-check font-bold"></i>' : ''}
+                                    </button>
+                                    <div class="w-full">
+                                        <h4 class="font-bold text-content text-xl leading-tight ${task.completed ? 'line-through text-muted' : ''}">${task.title}</h4>
+                                    </div>
                                 </div>
+                                <button type="button" onclick="deleteTask('${task.id}')" class="text-muted hover:text-brand-red shrink-0"><i class="ph ph-trash text-xl"></i></button>
                             </div>
-                            <button onclick="deleteTask('${task.id}')" class="text-muted hover:text-brand-red"><i class="ph ph-trash text-xl"></i></button>
+                            ${expanderHTML}
+                            ${subtasksHTML}
+                            ${addSubtaskHTML}
                         </div>
-                        <div class="flex justify-between items-center border-t-2 border-bound border-opacity-20 pt-3">
+                        <div class="flex justify-between items-center border-t-2 border-bound border-opacity-20 pt-3 mt-4">
                             <span class="font-mono text-xs font-black uppercase tracking-widest flex items-center gap-1 ${deadlineColor}">
                                 <i class="ph ph-calendar"></i> ${dateStr} ${isOverdue ? '(OVERDUE)' : ''}
                             </span>
@@ -796,6 +1127,7 @@
         const stopBtn = document.getElementById('stopBtn');
         const statusText = document.getElementById('statusText');
         const scoreBar = document.getElementById('scoreBar');
+        const logContainer = document.getElementById('logContainer');
 
         const graphCanvas = document.getElementById('graphCanvas');
         const graphCtx = graphCanvas ? graphCanvas.getContext('2d') : null;
@@ -811,8 +1143,16 @@
         let nativeStream = null; 
         let faceMesh = null;
         let currentScore = 0;
+        let currentEar = 1.0;
+        let currentMar = 0.0;
         let smoothedScore = 0;
         let currentState = 'standby'; 
+
+        // Vigilance Timers
+        let sleepStartTime = 0;
+        const SLEEP_THRESHOLD_MS = 3000; // 3 seconds
+        let yawnStartTime = 0;
+        const YAWN_THRESHOLD_MS = 1500;  // 1.5 seconds
 
         let sessionTimer = null;
         let totalTimeSec = 0;
@@ -823,6 +1163,137 @@
 
         const maxGraphPoints = 100;
         let scoreHistory = new Array(maxGraphPoints).fill(0);
+        let sessions = JSON.parse(localStorage.getItem('vigilanceSessions')) || [];
+
+        // ============================================================================
+        // LOGGING & NOTIFICATIONS LOGIC
+        // ============================================================================
+        function addLog(message, type = 'info') {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            let colorClass = 'text-content bg-panel border-2 border-bound shadow-neo-sm';
+            let dotColor = 'bg-brand-blue';
+            
+            if (type === 'warning') dotColor = 'bg-brand-amber';
+            if (type === 'error') dotColor = 'bg-brand-red';
+            if (type === 'success') dotColor = 'bg-brand-green';
+
+            const logEntry = document.createElement('div');
+            logEntry.className = `flex items-center gap-3 p-2.5 rounded-lg ${colorClass} transition-all`;
+            logEntry.innerHTML = `
+                <div class="w-2 h-2 rounded-full border border-bound ${dotColor}"></div>
+                <div class="flex-1 font-bold tracking-tight">${message}</div>
+                <div class="text-[9px] opacity-70 tracking-wider">${time}</div>
+            `;
+            
+            if(logContainer && logContainer.children.length > 0 && logContainer.children[0].innerText.includes('Waiting')) {
+                logContainer.innerHTML = '';
+            }
+
+            if(logContainer) logContainer.prepend(logEntry);
+            if(logContainer && logContainer.children.length > 15) logContainer.removeChild(logContainer.lastChild);
+        }
+
+        // ============================================================================
+        // SESSION HISTORY LOGIC
+        // ============================================================================
+        function renderSessions() {
+            const list = document.getElementById('sessionHistoryList');
+            if(!list) return;
+            list.innerHTML = '';
+            
+            if(sessions.length === 0) {
+                list.innerHTML = '<p class="text-xs font-bold text-muted opacity-50 text-center py-6">No sessions recorded yet. Start a protocol to log data.</p>';
+                return;
+            }
+
+            sessions.forEach(s => {
+                const dateObj = new Date(s.timestamp);
+                const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                
+                let colorClass = "text-content";
+                if(s.focusPercent >= 90) colorClass = "text-brand-blue";
+                else if(s.focusPercent >= 75) colorClass = "text-brand-green";
+                else if(s.focusPercent < 50) colorClass = "text-brand-red";
+
+                list.innerHTML += `
+                    <div class="flex items-center justify-between border-b-2 border-bound border-opacity-10 pb-3 hover:bg-base transition-colors p-2 rounded">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl drop-shadow-neo-sm">${s.badgeIcon}</span>
+                            <div>
+                                <p class="font-bold ${colorClass} text-sm uppercase tracking-wider font-display">${s.badgeTitle}</p>
+                                <p class="text-[10px] font-black uppercase tracking-widest text-muted"><i class="ph ph-calendar"></i> ${dateStr} at ${timeStr}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-mono font-black ${colorClass} text-xl">${s.focusPercent}%</p>
+                            <p class="text-[9px] font-black uppercase tracking-widest text-muted">${formatTime(s.totalTime)} Total</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // ============================================================================
+        // SYNTHESIZED AUDIO NOTIFICATIONS
+        // ============================================================================
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playAlertSound() {
+            initAudio();
+            if (!audioCtx) return;
+            const playBeep = (timeOffset) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime + timeOffset);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime + timeOffset);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + timeOffset + 0.15);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + timeOffset);
+                osc.stop(audioCtx.currentTime + timeOffset + 0.15);
+            };
+            playBeep(0);
+            playBeep(0.2);
+        }
+
+        function playLeaveSound() {
+            initAudio();
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function playReturnSound() {
+            initAudio();
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
 
         function formatTime(seconds) {
             const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
@@ -862,6 +1333,24 @@
             graphCtx.stroke();
         }
 
+        function calculateEAR(landmarks) {
+            const leftWidth = getDistance(landmarks[33], landmarks[133]);
+            const leftHeight = getDistance(landmarks[159], landmarks[145]);
+            const earLeft = leftHeight / leftWidth;
+
+            const rightWidth = getDistance(landmarks[362], landmarks[263]);
+            const rightHeight = getDistance(landmarks[386], landmarks[374]);
+            const earRight = rightHeight / rightWidth;
+
+            return (earLeft + earRight) / 2;
+        }
+
+        function calculateMAR(landmarks) {
+            const mouthHeight = getDistance(landmarks[13], landmarks[14]);
+            const mouthWidth = getDistance(landmarks[78], landmarks[308]);
+            return mouthHeight / mouthWidth;
+        }
+
         function calculateAttentionScore(landmarks) {
             const nose = landmarks[1];
             const leftEye = landmarks[33];
@@ -895,11 +1384,31 @@
             drawGraph();
 
             let newState = 'focused';
-            if (currentScore === 0 && !isRunning) newState = 'standby';
-            else if (currentScore === 0) newState = 'missing';
-            else if (displayScore < 40) newState = 'distracted';
+            
+            if (!isRunning) {
+                newState = 'standby';
+            } 
+            else if (currentScore === 0 && currentEar === 1.0 && sleepStartTime === 0) {
+                newState = 'missing';
+            } 
+            else if (sleepStartTime > 0 && (performance.now() - sleepStartTime > SLEEP_THRESHOLD_MS)) {
+                newState = 'drowsy'; 
+            } 
+            else if (yawnStartTime > 0 && (performance.now() - yawnStartTime > YAWN_THRESHOLD_MS)) {
+                newState = 'yawning'; 
+            }
+            else if (displayScore < 40) {
+                newState = 'distracted'; 
+            }
             
             if (newState !== currentState) {
+                let justReturned = false;
+                
+                if (currentState === 'missing' && (newState === 'focused' || newState === 'standby' || newState === 'distracted')) {
+                    playReturnSound();
+                    justReturned = true; 
+                }
+                
                 currentState = newState;
                 
                 if(!statusText) return;
@@ -908,16 +1417,31 @@
                     statusText.innerText = 'Flow State';
                     statusText.className = 'text-4xl font-display font-black text-brand-green uppercase tracking-widest block mb-4';
                     if(scoreBar) scoreBar.style.backgroundColor = '#047857';
-                } 
-                else if (currentState === 'distracted') {
-                    statusText.innerText = 'Wandering';
+                    addLog('Subject engaged. Focus verified.', 'success');
+                } else if (currentState === 'drowsy') {
+                    statusText.innerText = 'Micro-Sleep!';
+                    statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
+                    if(scoreBar) scoreBar.style.backgroundColor = '#BE123C';
+                    addLog('CRITICAL: Micro-sleep detected.', 'error');
+                    playAlertSound(); 
+                } else if (currentState === 'yawning') {
+                    statusText.innerText = 'Fatigue (Yawn)';
+                    statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
+                    if(scoreBar) scoreBar.style.backgroundColor = '#BE123C';
+                    addLog('Fatigue Warning: Yawn detected.', 'error');
+                    playAlertSound(); 
+                } else if (currentState === 'distracted') {
+                    statusText.innerText = 'Looking Away';
                     statusText.className = 'text-4xl font-display font-black text-brand-amber uppercase tracking-widest block mb-4';
                     if(scoreBar) scoreBar.style.backgroundColor = '#D97706';
-                }
-                else if (currentState === 'missing') {
+                    addLog('Eye contact lost. Subject distracted.', 'warning');
+                    if (!justReturned) playAlertSound(); 
+                } else if (currentState === 'missing') {
                     statusText.innerText = 'Absent';
                     statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
                     if(scoreBar) scoreBar.style.backgroundColor = '#BE123C';
+                    addLog('Subject lost from frame.', 'warning');
+                    playLeaveSound(); 
                 }
             }
         }
@@ -948,11 +1472,11 @@
                             }
                         }
 
-                        if(currentState === 'focused' || currentState === 'distracted') {
+                        if(currentState === 'focused') {
                             onCameraSec++;
                             const onCamUi = document.getElementById('uiOnCamera');
                             if(onCamUi) onCamUi.innerText = formatTime(onCameraSec);
-                        } else if(currentState === 'missing') {
+                        } else if(currentState === 'missing' || currentState === 'drowsy' || currentState === 'yawning' || currentState === 'distracted') {
                             offCameraSec++;
                             const offCamUi = document.getElementById('uiOffCamera');
                             if(offCamUi) offCamUi.innerText = formatTime(offCameraSec);
@@ -974,9 +1498,37 @@
             
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                 const landmarks = results.multiFaceLandmarks[0];
+                
+                currentEar = calculateEAR(landmarks);
+                currentMar = calculateMAR(landmarks);
                 currentScore = calculateAttentionScore(landmarks);
+
+                let mouthColor = currentMar > 0.45 ? '#BE123C' : 'rgba(30, 58, 138, 0.1)';
+                
+                drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: 'rgba(30, 58, 138, 0.1)', lineWidth: 1}); 
+                drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#047857', lineWidth: 2}); 
+                drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#047857', lineWidth: 2}); 
+                drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {color: mouthColor, lineWidth: 2}); 
+                drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: '#1E3A8A', lineWidth: 2});
+                
+                if (currentEar < 0.22) {
+                    if (sleepStartTime === 0) sleepStartTime = performance.now();
+                } else {
+                    sleepStartTime = 0;
+                }
+
+                if (currentMar > 0.45) {
+                    if (yawnStartTime === 0) yawnStartTime = performance.now();
+                } else {
+                    yawnStartTime = 0;
+                }
+
             } else {
                 currentScore = 0;
+                currentEar = 1.0; 
+                currentMar = 0.0;
+                sleepStartTime = 0; 
+                yawnStartTime = 0;
             }
             
             canvasCtx.restore();
@@ -997,6 +1549,11 @@
         async function initModel() {
             if (isInitializing || isRunning) return; 
             isInitializing = true;
+            sleepStartTime = 0;
+            yawnStartTime = 0;
+            
+            initAudio(); 
+            addLog('Booting Cognitive Engine...', 'info');
             
             const loadingTextObj = document.querySelector('#loadingOverlay p');
             if(loadingOverlay) loadingOverlay.classList.remove('hidden');
@@ -1009,6 +1566,7 @@
 
             try {
                 if (loadingTextObj) loadingTextObj.innerText = "1/4: WAKING UP WEBCAM...";
+                addLog('Accessing Hardware...', 'info');
                 const nativeStream = await navigator.mediaDevices.getUserMedia({
                     video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
                 });
@@ -1022,6 +1580,7 @@
                 }
 
                 if (loadingTextObj) loadingTextObj.innerText = "2/4: MOUNTING VIDEO FEED...";
+                addLog('Mounting Stream...', 'info');
                 
                 if(videoElement) {
                     await Promise.race([
@@ -1040,15 +1599,18 @@
 
                 if(!faceMesh) {
                     if (loadingTextObj) loadingTextObj.innerText = "3/4: FETCHING AI FILES...";
+                    addLog('Downloading Weights...', 'info');
                     faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
                     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
                     faceMesh.onResults(onResults);
                 }
 
                 if (loadingTextObj) loadingTextObj.innerText = "4/4: COMPILING AI ENGINE (WAIT FOR IT)...";
+                addLog('Compiling Tensors...', 'info');
                 
                 isRunning = true;
                 processVideoFrame();
+                addLog('Sensors Locked. Monitoring active.', 'success');
 
             } catch (error) {
                 if(loadingOverlay) loadingOverlay.classList.add('hidden');
@@ -1068,6 +1630,7 @@
                 } else {
                     alert("Initialization Failed: " + (error.message || "Unknown error.") + stepInfo);
                 }
+                addLog('Hardware initialization failed.', 'error');
             }
         }
 
@@ -1082,6 +1645,9 @@
             
             clearInterval(sessionTimer);
             sessionTimer = null; 
+            sleepStartTime = 0;
+            yawnStartTime = 0;
+            addLog('Session Terminated.', 'info');
             
             if(canvasElement) canvasElement.classList.add('hidden');
             if(videoPlaceholder) videoPlaceholder.classList.remove('hidden');
@@ -1148,6 +1714,24 @@
 
             const summaryModal = document.getElementById('summaryModal');
             if(summaryModal) summaryModal.classList.remove('hidden');
+
+            if (totalTimeSec > 10) {
+                sessions.unshift({
+                    id: generateId(),
+                    timestamp: Date.now(),
+                    totalTime: totalTimeSec,
+                    focusTime: onCameraSec,
+                    breaks: breaksCount,
+                    focusPercent: Math.round(focusPercent * 100),
+                    badgeIcon: badgeIcon ? badgeIcon.innerText : "☁️",
+                    badgeTitle: badgeTitle ? badgeTitle.innerText : "Wandering Mind"
+                });
+                
+                if(sessions.length > 50) sessions.pop(); 
+                
+                localStorage.setItem('vigilanceSessions', JSON.stringify(sessions));
+                renderSessions();
+            }
         }
 
         function closeSummary() {
@@ -1209,6 +1793,7 @@
         // Boot up sequence
         renderHabits(); 
         renderTasks(); 
+        renderSessions();
         setTimeout(resizeHabitsGraph, 100);
     </script>
 </body>
