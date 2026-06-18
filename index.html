@@ -12,7 +12,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script>
-        // Setup initial theme immediately to prevent flashing
         if (localStorage.getItem('lockin_theme') === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
         }
@@ -46,14 +45,17 @@
         }
     </script>
     
+    <!-- MediaPipe for Face/Eye Tracking -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 
-    <!-- HTML to Canvas for PNG Image Generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- TensorFlow & COCO-SSD for Cell Phone Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd" crossorigin="anonymous"></script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>
@@ -78,7 +80,7 @@
             --color-text: #ffffff; 
             --color-text-muted: #a1a1aa; 
             --color-border: #3f3f46; 
-            --color-shadow: #1E3A8A; /* Invincible Blue Accents */
+            --color-shadow: #1E3A8A; 
             --color-invert-bg: #1E3A8A;
             --color-invert-text: #ffffff;
         }
@@ -92,10 +94,7 @@
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        button, a, label, .habit-checkbox, .neo-tab-btn {
-            cursor: pointer !important;
-        }
-
+        button, a, label, .habit-checkbox, .neo-tab-btn { cursor: pointer !important; }
         input[type="text"], input[type="date"], input[type="email"] { cursor: text; }
         
         .neo-panel { background: var(--color-panel); border: 3px solid var(--color-border); box-shadow: 6px 6px 0px 0px var(--color-shadow); border-radius: 12px; transition: all 0.3s ease; }
@@ -123,12 +122,18 @@
         .habit-checkbox:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px 0px var(--color-shadow); }
         .habit-checkbox:disabled { opacity: 0.3; cursor: not-allowed !important; }
 
-        /* Sub-habit Checkbox CSS */
         .subhabit-checkbox { appearance: none; width: 18px; height: 18px; border: 2px solid var(--color-border); border-radius: 4px; background-color: var(--color-panel); position: relative; box-shadow: 2px 2px 0px 0px var(--color-shadow); transition: all 0.1s; cursor: pointer; }
         .subhabit-checkbox:checked { background-color: #1E3A8A; border-color: #1E3A8A; box-shadow: 2px 2px 0px 0px var(--color-shadow); }
         .subhabit-checkbox:checked::after { content: '✓'; position: absolute; color: white; font-weight: bold; font-size: 12px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
         .subhabit-checkbox:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px 0px var(--color-shadow); }
         .subhabit-checkbox:disabled { opacity: 0.3; cursor: not-allowed !important; }
+        
+        .siren-animation { animation: pulseSiren 0.5s infinite; }
+        @keyframes pulseSiren {
+            0% { background-color: #BE123C; }
+            50% { background-color: #1E3A8A; }
+            100% { background-color: #BE123C; }
+        }
     </style>
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-start p-4 lg:p-8">
@@ -192,7 +197,6 @@
                 <i class="ph-fill ph-receipt text-brand-blue"></i> Focus Receipt
             </h2>
             
-            <!-- Wrapper for the image rendering -->
             <div class="my-6 flex justify-center w-full overflow-hidden" id="reportVisualWrapper">
                 <div id="reportVisual" class="w-full"></div>
             </div>
@@ -251,6 +255,7 @@
             </button>
         </div>
 
+        <!-- HABITS TAB -->
         <div id="tab-habits" class="tab-content flex flex-col gap-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="neo-panel p-6 bg-panel flex flex-col h-48 md:col-span-2 w-full">
@@ -292,6 +297,7 @@
             </div>
         </div>
 
+        <!-- TASKS TAB -->
         <div id="tab-tasks" class="tab-content hidden flex flex-col gap-6">
             <div class="neo-panel p-6 bg-content flex flex-col md:flex-row gap-4 items-end">
                 <div class="flex-[2] w-full">
@@ -307,6 +313,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="taskList"></div>
         </div>
 
+        <!-- FOCUS TAB -->
         <div id="tab-focus" class="tab-content hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-8 flex flex-col gap-6">
                 <div class="neo-panel p-4 flex items-center justify-between bg-panel border-b-4 border-bound">
@@ -344,7 +351,6 @@
                     </div>
                 </div>
                 
-                <!-- NEW: Session History Panel -->
                 <div class="neo-panel p-5 flex flex-col bg-panel max-h-64">
                     <h3 class="text-[11px] font-black text-muted mb-4 uppercase tracking-[0.2em] font-display flex items-center gap-2 border-b-2 border-bound pb-2">
                         <i class="ph ph-clock-counter-clockwise text-brand-blue text-lg"></i> Session History
@@ -362,7 +368,7 @@
                     <div class="w-full bg-panel rounded-full h-4 border-2 border-bound overflow-hidden">
                         <div id="scoreBar" class="bg-content h-full transition-all duration-300 border-r-2 border-bound" style="width: 0%"></div>
                     </div>
-                    <p class="text-[9px] font-mono font-bold text-muted mt-4 uppercase">Pitch / Yaw / EAR / MAR Evaluation</p>
+                    <p class="text-[9px] font-mono font-bold text-muted mt-4 uppercase">AI Optical Evaluation</p>
                 </div>
                 <div class="neo-panel p-6 flex-1 flex flex-col gap-4 bg-panel">
                     <h2 class="text-content text-xs font-black uppercase tracking-widest font-display border-b-2 border-bound pb-2">Execution Metrics</h2>
@@ -388,7 +394,6 @@
                         <i class="ph ph-coffee text-2xl text-muted"></i>
                     </div>
 
-                    <!-- NEW: Live System Logs / Notifications -->
                     <div id="logContainer" class="flex-1 overflow-y-auto space-y-3 pr-2 text-sm border-t-2 border-bound border-opacity-20 pt-4 mt-2 font-mono text-[11px] font-bold max-h-48">
                         <div class="text-muted italic text-center opacity-70">System initialized. Waiting for data stream...</div>
                     </div>
@@ -398,6 +403,13 @@
     </div>
 
     <script>
+        // =====================================================================
+        // 🚨 YOUR FORMSPREE CONFIGURATION (PASTE YOUR URL HERE) 🚨
+        // =====================================================================
+        const FORMSPREE_ENDPOINT = "https://formspree.io/f/xdawjpee"; 
+        // Example: "https://formspree.io/f/xvgzyqpl"
+
+
         // --- THEME TOGGLE LOGIC ---
         document.addEventListener("DOMContentLoaded", () => {
             const themeIcon = document.getElementById('themeIcon');
@@ -422,7 +434,7 @@
             if (typeof drawGraph === 'function') drawGraph();
         }
 
-        // --- AUTHENTICATION & GLOBAL CLICK LISTENERS ---
+        // --- AUTHENTICATION & FORMSPREE EMAIL CAPTURE ---
         document.addEventListener("DOMContentLoaded", () => {
             const authGate = document.getElementById('authGate');
             const loginForm = document.getElementById('loginForm');
@@ -440,19 +452,20 @@
                     if (email) {
                         submitBtn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-xl"></i> Locking In...';
                         try {
-                            await fetch('https://formspree.io/f/YOUR_FORMSPREE_ID', {
+                            // Forward the email to Formspree
+                            await fetch(FORMSPREE_ENDPOINT, {
                                 method: 'POST',
-                                headers: {
-                                    'Accept': 'application/json',
-                                    'Content-Type': 'application/json'
-                                },
+                                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ email: email })
                             });
+                            
+                            // Save to local storage and hide modal
                             localStorage.setItem('lockin_user_email', email);
                             authGate.style.opacity = '0';
                             setTimeout(() => { authGate.classList.add('hidden'); }, 300);
                         } catch (error) {
-                            console.error("Database Error:", error);
+                            console.error("Formspree Error:", error);
+                            // Fallback: If Formspree fails (ad blocker, etc.), still let them into the app
                             localStorage.setItem('lockin_user_email', email);
                             authGate.style.opacity = '0';
                             setTimeout(() => { authGate.classList.add('hidden'); }, 300);
@@ -461,7 +474,6 @@
                 });
             }
 
-            // Global Click Listener for Auto-Collapsing Menus
             document.addEventListener('click', (e) => {
                 const habitList = document.getElementById('habitList');
                 const taskList = document.getElementById('taskList');
@@ -469,31 +481,21 @@
 
                 if (habitList && !habitList.contains(e.target) && !e.target.closest('#habitInput') && !e.target.closest('button[onclick="addHabit()"]')) {
                     habits.forEach(h => {
-                        if (h.isExpanded) {
-                            h.isExpanded = false;
-                            changed = true;
-                        }
+                        if (h.isExpanded) { h.isExpanded = false; changed = true; }
                     });
                 }
                 
                 if (taskList && !taskList.contains(e.target) && !e.target.closest('#taskInput') && !e.target.closest('button[onclick="addTask()"]')) {
                     tasks.forEach(t => {
-                        if (t.isExpanded) {
-                            t.isExpanded = false;
-                            changed = true;
-                        }
+                        if (t.isExpanded) { t.isExpanded = false; changed = true; }
                     });
                 }
 
-                if (changed) {
-                    saveHabits();
-                    saveTasks();
-                }
+                if (changed) { saveHabits(); saveTasks(); }
             });
         });
 
-        // --- CORE TIME & WEEKLY ROLLOVER LOGIC ---
-        // Bulletproof Date Calculation for Monday to avoid timezone parsing drift
+        // --- CORE LOGIC ---
         function getMondayDate(date) {
             const d = new Date(date);
             d.setHours(0, 0, 0, 0);
@@ -502,7 +504,6 @@
             return d;
         }
 
-        // Generate strict string keys like "2026-4-20"
         function getWeekKey(date) {
             const monday = getMondayDate(date);
             return `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`;
@@ -520,14 +521,11 @@
                 localStorage.setItem('acuityMeta', JSON.stringify(appMeta));
             } 
             else if (appMeta.currentWeekStart !== currentKey) {
-                console.log("New week detected! Archiving last week's data...");
                 habits.forEach(h => {
                     h.lastWeekCount = h.days.filter(Boolean).length;
                     h.days = [false, false, false, false, false, false, false];
                     if (h.subhabits) {
-                        h.subhabits.forEach(sub => {
-                            sub.days = [false, false, false, false, false, false, false];
-                        });
+                        h.subhabits.forEach(sub => sub.days = [false, false, false, false, false, false, false]);
                     }
                 });
                 appMeta.currentWeekStart = currentKey;
@@ -536,7 +534,6 @@
             }
         }
 
-        // AGGRESSIVE BUG FIX: Force uncheck any "Future" days that were trapped
         function cleanFutureDays() {
             const today = new Date();
             const currentDayIndex = (today.getDay() + 6) % 7;
@@ -544,62 +541,44 @@
 
             habits.forEach(h => {
                 for (let i = currentDayIndex + 1; i < 7; i++) {
-                    if (h.days[i] === true) {
-                        h.days[i] = false;
-                        changed = true;
-                    }
+                    if (h.days[i] === true) { h.days[i] = false; changed = true; }
                 }
                 if (h.subhabits) {
                     h.subhabits.forEach(sub => {
                         for (let i = currentDayIndex + 1; i < 7; i++) {
-                            if (sub.days[i] === true) {
-                                sub.days[i] = false;
-                                changed = true;
-                            }
+                            if (sub.days[i] === true) { sub.days[i] = false; changed = true; }
                         }
                     });
                 }
             });
 
-            if (changed) {
-                localStorage.setItem('acuityHabits', JSON.stringify(habits));
-            }
+            if (changed) localStorage.setItem('acuityHabits', JSON.stringify(habits));
         }
 
-        // Run immediately on boot
         checkWeeklyRollover();
         cleanFutureDays();
 
         const dateDisplay = document.getElementById('dateDisplay');
-        if (dateDisplay) {
-            dateDisplay.innerText = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        }
+        if (dateDisplay) dateDisplay.innerText = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-        function generateId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2);
-        }
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
 
-        // --- Tab Switching Logic ---
         function switchTab(tabId) {
             document.querySelectorAll('.neo-tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`tabBtn-${tabId}`).classList.add('active');
-
             document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-
             if(tabId === 'focus') setTimeout(resizeGraph, 50);
             else if (tabId === 'habits') setTimeout(resizeHabitsGraph, 50);
         }
 
-        // --- HABITS & TRENDS LOGIC ---
+        // --- HABITS ---
         function addHabit() {
             const input = document.getElementById('habitInput');
             const title = input.value.trim();
             if(!title) return;
-
             habits.push({ id: generateId(), title: title, days: [false, false, false, false, false, false, false], lastWeekCount: 0, subhabits: [], isExpanded: false });
-            input.value = '';
-            saveHabits();
+            input.value = ''; saveHabits();
         }
 
         function toggleHabitExpansion(habitId, forceOpen = false) {
@@ -608,21 +587,14 @@
                 if (habit) {
                     habit.isExpanded = forceOpen ? true : !habit.isExpanded;
                     saveHabits();
-                    if (habit.isExpanded) {
-                        setTimeout(() => {
-                            const input = document.getElementById(`subhabitInput-${habit.id}`);
-                            if(input) input.focus();
-                        }, 50);
-                    }
+                    if (habit.isExpanded) setTimeout(() => document.getElementById(`subhabitInput-${habit.id}`)?.focus(), 50);
                 }
             }, 10);
         }
 
         function updateMainHabitStatus(habit) {
             if (habit.subhabits && habit.subhabits.length > 0) {
-                for (let i = 0; i < 7; i++) {
-                    habit.days[i] = habit.subhabits.every(s => s.days[i]);
-                }
+                for (let i = 0; i < 7; i++) habit.days[i] = habit.subhabits.every(s => s.days[i]);
             }
         }
 
@@ -630,9 +602,7 @@
             const habit = habits.find(h => h.id === habitId);
             if(habit) {
                 habit.days[dayIndex] = !habit.days[dayIndex];
-                if (habit.subhabits && habit.subhabits.length > 0) {
-                    habit.subhabits.forEach(s => s.days[dayIndex] = habit.days[dayIndex]);
-                }
+                if (habit.subhabits) habit.subhabits.forEach(s => s.days[dayIndex] = habit.days[dayIndex]);
                 saveHabits();
             }
         }
@@ -641,32 +611,19 @@
             const habit = habits.find(h => h.id === habitId);
             if (habit && habit.subhabits) {
                 const sub = habit.subhabits.find(s => s.id === subtaskId);
-                if (sub) {
-                    sub.days[dayIndex] = !sub.days[dayIndex];
-                    updateMainHabitStatus(habit); 
-                    saveHabits();
-                }
+                if (sub) { sub.days[dayIndex] = !sub.days[dayIndex]; updateMainHabitStatus(habit); saveHabits(); }
             }
         }
 
         function addSubhabit(habitId) {
             const input = document.getElementById(`subhabitInput-${habitId}`);
-            if (!input) return;
-            const title = input.value.trim();
-            if (!title) return;
-
+            if (!input || !input.value.trim()) return;
             const habit = habits.find(h => h.id === habitId);
             if (habit) {
                 habit.subhabits = habit.subhabits || [];
-                habit.subhabits.push({ id: generateId(), title: title, days: [false, false, false, false, false, false, false] });
-                habit.isExpanded = true;
-                updateMainHabitStatus(habit);
-                saveHabits();
-                
-                setTimeout(() => {
-                    const newInput = document.getElementById(`subhabitInput-${habit.id}`);
-                    if(newInput) newInput.focus();
-                }, 50);
+                habit.subhabits.push({ id: generateId(), title: input.value.trim(), days: [false, false, false, false, false, false, false] });
+                habit.isExpanded = true; updateMainHabitStatus(habit); saveHabits();
+                setTimeout(() => document.getElementById(`subhabitInput-${habit.id}`)?.focus(), 50);
             }
         }
 
@@ -674,20 +631,15 @@
             const habit = habits.find(h => h.id === habitId);
             if (habit && habit.subhabits) {
                 habit.subhabits = habit.subhabits.filter(s => s.id !== subtaskId);
-                updateMainHabitStatus(habit);
-                saveHabits();
+                updateMainHabitStatus(habit); saveHabits();
             }
         }
 
-        function deleteHabit(id) {
-            habits = habits.filter(h => h.id !== id);
-            saveHabits();
-        }
+        function deleteHabit(id) { habits = habits.filter(h => h.id !== id); saveHabits(); }
 
         function saveHabits() {
             localStorage.setItem('acuityHabits', JSON.stringify(habits));
-            renderHabits();
-            updateTrends();
+            renderHabits(); updateTrends();
         }
 
         function updateTrends() {
@@ -702,9 +654,7 @@
                 return;
             }
 
-            let currentWeekTotal = 0;
-            let lastWeekTotal = 0;
-
+            let currentWeekTotal = 0; let lastWeekTotal = 0;
             habits.forEach(h => {
                 currentWeekTotal += h.days.filter(Boolean).length;
                 lastWeekTotal += (h.lastWeekCount || 0);
@@ -720,7 +670,6 @@
                 trendDesc.innerText = `Awaiting action`;
             } else {
                 const percentChange = Math.round(((currentWeekTotal - lastWeekTotal) / lastWeekTotal) * 100);
-                
                 if (percentChange > 0) {
                     trendDisplay.innerHTML = `+${percentChange}% <i class="ph ph-trend-up"></i>`;
                     trendDisplay.className = "text-5xl font-black font-display text-brand-green flex items-center gap-2";
@@ -736,18 +685,14 @@
         }
 
         function renderHabits() {
-            checkWeeklyRollover();
-            cleanFutureDays();
-
+            checkWeeklyRollover(); cleanFutureDays();
             const list = document.getElementById('habitList');
             if(!list) return;
             list.innerHTML = '';
             
             if(habits.length === 0) {
                 list.innerHTML = `<tr><td colspan="9" class="text-center p-8 text-muted font-bold opacity-50 border-2 border-dashed border-bound">No habits tracked yet.</td></tr>`;
-                drawHabitsGraph();
-                updateTrends();
-                return;
+                drawHabitsGraph(); updateTrends(); return;
             }
 
             const today = new Date();
@@ -756,193 +701,99 @@
             habits.forEach(habit => {
                 habit.subhabits = habit.subhabits || [];
                 const totalSubs = habit.subhabits.length;
-
-                let expanderHTML = '';
-                if (totalSubs > 0) {
-                    expanderHTML = `
-                        <div class="mt-1">
-                            <button type="button" onclick="toggleHabitExpansion('${habit.id}')" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors">
-                                <i class="ph ${habit.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>
-                                ${totalSubs} Sub-Habits
-                            </button>
-                        </div>
-                    `;
-                } else {
-                    expanderHTML = `
-                        <div class="mt-1">
-                            <button type="button" onclick="toggleHabitExpansion('${habit.id}', true)" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity">
-                                <i class="ph ph-plus text-sm"></i> Add Sub-Habit
-                            </button>
-                        </div>
-                    `;
-                }
+                let expanderHTML = totalSubs > 0 
+                    ? `<div class="mt-1"><button type="button" onclick="toggleHabitExpansion('${habit.id}')" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"><i class="ph ${habit.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>${totalSubs} Sub-Habits</button></div>`
+                    : `<div class="mt-1"><button type="button" onclick="toggleHabitExpansion('${habit.id}', true)" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100"><i class="ph ph-plus text-sm"></i> Add Sub-Habit</button></div>`;
 
                 let mainCheckboxesHTML = '';
                 for(let i=0; i<7; i++) {
                     const isFutureDay = i > currentDayIndex;
-                    const disabledAttr = isFutureDay ? 'disabled title="Time-locked: Future date"' : '';
-                    mainCheckboxesHTML += `<td class="text-center py-4"><input type="checkbox" class="habit-checkbox" ${habit.days[i] ? 'checked' : ''} ${disabledAttr} onchange="toggleHabitDay('${habit.id}', ${i})"></td>`;
+                    mainCheckboxesHTML += `<td class="text-center py-4"><input type="checkbox" class="habit-checkbox" ${habit.days[i] ? 'checked' : ''} ${isFutureDay ? 'disabled title="Time-locked"' : ''} onchange="toggleHabitDay('${habit.id}', ${i})"></td>`;
                 }
 
-                let subhabitsHTML = '';
-                let addSubhabitHTML = '';
-
+                let subhabitsHTML = ''; let addSubhabitHTML = '';
                 if (habit.isExpanded) {
                     if (totalSubs > 0) {
                         habit.subhabits.forEach(sub => {
                             let subCheckboxesHTML = '';
                             for(let i=0; i<7; i++) {
-                                const isFutureDay = i > currentDayIndex;
-                                const disabledAttr = isFutureDay ? 'disabled title="Time-locked: Future date"' : '';
-                                subCheckboxesHTML += `<td class="text-center py-2"><input type="checkbox" class="subhabit-checkbox mx-auto" ${sub.days[i] ? 'checked' : ''} ${disabledAttr} onchange="toggleSubhabitDay('${habit.id}', '${sub.id}', ${i})"></td>`;
+                                subCheckboxesHTML += `<td class="text-center py-2"><input type="checkbox" class="subhabit-checkbox mx-auto" ${sub.days[i] ? 'checked' : ''} ${i > currentDayIndex ? 'disabled title="Time-locked"' : ''} onchange="toggleSubhabitDay('${habit.id}', '${sub.id}', ${i})"></td>`;
                             }
-                            subhabitsHTML += `
-                                <tr class="bg-panel hover:bg-base transition-colors group/sub">
-                                    <td class="py-2 pl-8 font-bold text-muted text-sm flex items-center gap-2 border-l-4 border-brand-blue ml-2">
-                                        <i class="ph ph-arrow-elbow-down-right"></i> <span class="${sub.days[currentDayIndex] ? 'line-through opacity-70' : ''}">${sub.title}</span>
-                                    </td>
-                                    ${subCheckboxesHTML}
-                                    <td class="text-right py-2 pr-4">
-                                        <button type="button" onclick="deleteSubhabit('${habit.id}', '${sub.id}')" class="opacity-0 group-hover/sub:opacity-100 text-muted hover:text-brand-red transition-opacity"><i class="ph ph-x"></i></button>
-                                    </td>
-                                </tr>
-                            `;
+                            subhabitsHTML += `<tr class="bg-panel hover:bg-base group/sub"><td class="py-2 pl-8 font-bold text-muted text-sm flex items-center gap-2 border-l-4 border-brand-blue ml-2"><i class="ph ph-arrow-elbow-down-right"></i> <span class="${sub.days[currentDayIndex] ? 'line-through opacity-70' : ''}">${sub.title}</span></td>${subCheckboxesHTML}<td class="text-right py-2 pr-4"><button type="button" onclick="deleteSubhabit('${habit.id}', '${sub.id}')" class="opacity-0 group-hover/sub:opacity-100 text-muted hover:text-brand-red"><i class="ph ph-x"></i></button></td></tr>`;
                         });
                     }
-
-                    addSubhabitHTML = `
-                        <tr class="border-b-2 border-bound border-opacity-20 bg-panel">
-                            <td class="py-2 pl-8 pb-4 border-l-4 border-brand-blue ml-2">
-                                <div class="flex items-center gap-2 max-w-[200px]">
-                                    <input type="text" id="subhabitInput-${habit.id}" class="neo-input text-[10px] px-2 py-1.5 w-full rounded font-bold text-content" placeholder="Add sub-habit..." onkeypress="if(event.key === 'Enter') addSubhabit('${habit.id}')">
-                                    <button type="button" onclick="addSubhabit('${habit.id}')" class="neo-btn neo-btn-blue px-2 py-1.5 rounded text-[10px]"><i class="ph ph-plus"></i></button>
-                                </div>
-                            </td>
-                            <td colspan="8"></td>
-                        </tr>
-                    `;
+                    addSubhabitHTML = `<tr class="border-b-2 border-bound border-opacity-20 bg-panel"><td class="py-2 pl-8 pb-4 border-l-4 border-brand-blue ml-2"><div class="flex items-center gap-2 max-w-[200px]"><input type="text" id="subhabitInput-${habit.id}" class="neo-input text-[10px] px-2 py-1.5 w-full rounded font-bold text-content" placeholder="Add sub-habit..." onkeypress="if(event.key === 'Enter') addSubhabit('${habit.id}')"><button type="button" onclick="addSubhabit('${habit.id}')" class="neo-btn neo-btn-blue px-2 py-1.5 rounded text-[10px]"><i class="ph ph-plus"></i></button></div></td><td colspan="8"></td></tr>`;
                 }
 
-                list.innerHTML += `
-                    <tr class="border-b-2 border-bound border-opacity-20 hover:bg-base transition-colors ${habit.isExpanded ? 'bg-panel' : ''}">
-                        <td class="py-4 font-bold text-content text-lg leading-tight">
-                            ${habit.title}
-                            ${expanderHTML}
-                        </td>
-                        ${mainCheckboxesHTML}
-                        <td class="text-right py-4 pr-2">
-                            <button type="button" onclick="deleteHabit('${habit.id}')" class="text-muted hover:text-brand-red transition-colors"><i class="ph ph-trash text-xl"></i></button>
-                        </td>
-                    </tr>
-                    ${subhabitsHTML}
-                    ${addSubhabitHTML}
-                `;
+                list.innerHTML += `<tr class="border-b-2 border-bound border-opacity-20 hover:bg-base ${habit.isExpanded ? 'bg-panel' : ''}"><td class="py-4 font-bold text-content text-lg leading-tight">${habit.title}${expanderHTML}</td>${mainCheckboxesHTML}<td class="text-right py-4 pr-2"><button type="button" onclick="deleteHabit('${habit.id}')" class="text-muted hover:text-brand-red"><i class="ph ph-trash text-xl"></i></button></td></tr>${subhabitsHTML}${addSubhabitHTML}`;
             });
-            
-            drawHabitsGraph();
-            updateTrends();
+            drawHabitsGraph(); updateTrends();
         }
 
-        // Weekly Consistency Graph Logic
         const habitsCanvas = document.getElementById('habitsGraphCanvas');
         const habitsCtx = habitsCanvas ? habitsCanvas.getContext('2d') : null;
-
         if (habitsCanvas) habitsCanvas.style.transform = 'scaleX(1)';
 
         function drawHabitsGraph() {
             if (!habitsCtx || !habitsCanvas) return;
-            const w = habitsCanvas.width;
-            const h = habitsCanvas.height;
+            const w = habitsCanvas.width; const h = habitsCanvas.height;
             habitsCtx.clearRect(0, 0, w, h);
-
             if(habits.length === 0) return;
 
             const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
             const completedCounts = [0, 0, 0, 0, 0, 0, 0];
-
-            habits.forEach(h => {
-                for(let i=0; i<7; i++) {
-                    if(h.days[i]) completedCounts[i]++;
-                }
-            });
+            habits.forEach(h => { for(let i=0; i<7; i++) if(h.days[i]) completedCounts[i]++; });
 
             const maxHabits = Math.max(habits.length, 1);
             const today = new Date();
-            const currentDayIndex = (today.getDay() + 6) % 7; 
-            const daysToShow = currentDayIndex + 1;
-            
+            const daysToShow = ((today.getDay() + 6) % 7) + 1; 
             const barWidth = Math.min(40, (w / daysToShow) - 20);
             const spacing = w / daysToShow;
 
-            // Fetch dynamic theme colors
             const themeTextColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text').trim() || '#0F172A';
             const themeBorderColor = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim() || '#0F172A';
 
-            habitsCtx.font = "bold 12px 'JetBrains Mono'";
-            habitsCtx.textAlign = "center";
-            habitsCtx.fillStyle = themeTextColor;
+            habitsCtx.font = "bold 12px 'JetBrains Mono'"; habitsCtx.textAlign = "center"; habitsCtx.fillStyle = themeTextColor;
 
             for(let i=0; i<daysToShow; i++) {
                 const x = (i * spacing) + (spacing / 2);
                 const barHeight = (completedCounts[i] / maxHabits) * (h - 40);
                 const y = h - 20 - barHeight;
-
                 habitsCtx.fillText(days[i], x, h - 2);
 
                 if (barHeight > 0) {
-                    habitsCtx.fillStyle = themeBorderColor;
-                    habitsCtx.fillRect(x - barWidth/2 + 4, y + 4, barWidth, barHeight);
-                    habitsCtx.fillStyle = '#1E3A8A';
-                    habitsCtx.fillRect(x - barWidth/2, y, barWidth, barHeight);
-                    habitsCtx.strokeStyle = themeBorderColor;
-                    habitsCtx.lineWidth = 3;
-                    habitsCtx.strokeRect(x - barWidth/2, y, barWidth, barHeight);
-                    habitsCtx.fillStyle = themeTextColor;
-                    habitsCtx.fillText(completedCounts[i], x, y - 8);
+                    habitsCtx.fillStyle = themeBorderColor; habitsCtx.fillRect(x - barWidth/2 + 4, y + 4, barWidth, barHeight);
+                    habitsCtx.fillStyle = '#1E3A8A'; habitsCtx.fillRect(x - barWidth/2, y, barWidth, barHeight);
+                    habitsCtx.strokeStyle = themeBorderColor; habitsCtx.lineWidth = 3; habitsCtx.strokeRect(x - barWidth/2, y, barWidth, barHeight);
+                    habitsCtx.fillStyle = themeTextColor; habitsCtx.fillText(completedCounts[i], x, y - 8);
                 } else {
-                    habitsCtx.strokeStyle = themeBorderColor;
-                    habitsCtx.lineWidth = 2;
-                    habitsCtx.beginPath();
-                    habitsCtx.moveTo(x - barWidth/2, h - 20);
-                    habitsCtx.lineTo(x + barWidth/2, h - 20);
-                    habitsCtx.stroke();
+                    habitsCtx.strokeStyle = themeBorderColor; habitsCtx.lineWidth = 2; habitsCtx.beginPath();
+                    habitsCtx.moveTo(x - barWidth/2, h - 20); habitsCtx.lineTo(x + barWidth/2, h - 20); habitsCtx.stroke();
                 }
             }
         }
-
         function resizeHabitsGraph() {
             if(!habitsCanvas || !habitsCanvas.parentElement) return;
-            const rect = habitsCanvas.parentElement.getBoundingClientRect();
-            habitsCanvas.width = rect.width;
-            habitsCanvas.height = rect.height;
+            habitsCanvas.width = habitsCanvas.parentElement.getBoundingClientRect().width;
+            habitsCanvas.height = habitsCanvas.parentElement.getBoundingClientRect().height;
             drawHabitsGraph();
         }
         window.addEventListener('resize', resizeHabitsGraph);
 
-        // --- TASKS LOGIC ---
+        // --- TASKS ---
         function addTask() {
             const titleInput = document.getElementById('taskInput');
             const dateInput = document.getElementById('taskDate');
-            const title = titleInput.value.trim();
-            if(!title) return;
-
-            tasks.push({ id: generateId(), title: title, deadline: dateInput.value, completed: false, completedAt: null, subtasks: [], isExpanded: false });
-            titleInput.value = ''; dateInput.value = '';
-            saveTasks();
+            if(!titleInput.value.trim()) return;
+            tasks.push({ id: generateId(), title: titleInput.value.trim(), deadline: dateInput.value, completed: false, completedAt: null, subtasks: [], isExpanded: false });
+            titleInput.value = ''; dateInput.value = ''; saveTasks();
         }
 
         function toggleTaskExpansion(taskId, forceOpen = false) {
             setTimeout(() => {
                 const task = tasks.find(t => t.id === taskId);
-                if (task) {
-                    task.isExpanded = forceOpen ? true : !task.isExpanded;
-                    saveTasks();
-                    if (task.isExpanded && !task.completed) {
-                        setTimeout(() => {
-                            const input = document.getElementById(`subtaskInput-${task.id}`);
-                            if(input) input.focus();
-                        }, 50);
-                    }
+                if (task) { task.isExpanded = forceOpen ? true : !task.isExpanded; saveTasks();
+                    if (task.isExpanded && !task.completed) setTimeout(() => document.getElementById(`subtaskInput-${task.id}`)?.focus(), 50);
                 }
             }, 10);
         }
@@ -950,29 +801,19 @@
         function updateMainTaskStatus(task) {
             if (task.subtasks && task.subtasks.length > 0) {
                 const allDone = task.subtasks.every(s => s.completed);
-                task.completed = allDone;
-                task.completedAt = allDone ? Date.now() : null;
+                task.completed = allDone; task.completedAt = allDone ? Date.now() : null;
             }
         }
 
         function addSubtask(taskId) {
             const input = document.getElementById(`subtaskInput-${taskId}`);
-            if (!input) return;
-            const title = input.value.trim();
-            if (!title) return;
-            
+            if (!input || !input.value.trim()) return;
             const task = tasks.find(t => t.id === taskId);
             if (task) {
                 task.subtasks = task.subtasks || [];
-                task.subtasks.push({ id: generateId(), title: title, completed: false });
-                task.isExpanded = true;
-                updateMainTaskStatus(task);
-                saveTasks();
-
-                setTimeout(() => {
-                    const newInput = document.getElementById(`subtaskInput-${task.id}`);
-                    if(newInput) newInput.focus();
-                }, 50);
+                task.subtasks.push({ id: generateId(), title: input.value.trim(), completed: false });
+                task.isExpanded = true; updateMainTaskStatus(task); saveTasks();
+                setTimeout(() => document.getElementById(`subtaskInput-${task.id}`)?.focus(), 50);
             }
         }
 
@@ -980,61 +821,43 @@
             const task = tasks.find(t => t.id === taskId);
             if (task && task.subtasks) {
                 const subtask = task.subtasks.find(s => s.id === subtaskId);
-                if (subtask) {
-                    subtask.completed = !subtask.completed;
-                    updateMainTaskStatus(task);
-                    saveTasks();
-                }
+                if (subtask) { subtask.completed = !subtask.completed; updateMainTaskStatus(task); saveTasks(); }
             }
         }
 
         function deleteSubtask(taskId, subtaskId) {
             const task = tasks.find(t => t.id === taskId);
-            if (task && task.subtasks) {
-                task.subtasks = task.subtasks.filter(s => s.id !== subtaskId);
-                updateMainTaskStatus(task);
-                saveTasks();
-            }
+            if (task && task.subtasks) { task.subtasks = task.subtasks.filter(s => s.id !== subtaskId); updateMainTaskStatus(task); saveTasks(); }
         }
 
         function toggleTaskComplete(id) {
             const task = tasks.find(t => t.id === id);
             if(task) {
-                task.completed = !task.completed;
-                task.completedAt = task.completed ? Date.now() : null;
-                if (task.subtasks && task.subtasks.length > 0) {
-                    task.subtasks.forEach(s => s.completed = task.completed);
-                }
+                task.completed = !task.completed; task.completedAt = task.completed ? Date.now() : null;
+                if (task.subtasks) task.subtasks.forEach(s => s.completed = task.completed);
                 saveTasks();
             }
         }
 
-        function deleteTask(id) {
-            tasks = tasks.filter(t => t.id !== id);
-            saveTasks();
-        }
+        function deleteTask(id) { tasks = tasks.filter(t => t.id !== id); saveTasks(); }
 
         function saveTasks() {
             tasks.sort((a, b) => {
                 if (a.completed === b.completed) {
-                    if(!a.deadline) return 1;
-                    if(!b.deadline) return -1;
+                    if(!a.deadline) return 1; if(!b.deadline) return -1;
                     return new Date(a.deadline) - new Date(b.deadline);
                 }
                 return a.completed ? 1 : -1;
             });
-            localStorage.setItem('acuityTasksList', JSON.stringify(tasks));
-            renderTasks();
+            localStorage.setItem('acuityTasksList', JSON.stringify(tasks)); renderTasks();
         }
 
         function renderTasks() {
             const list = document.getElementById('taskList');
             if(!list) return;
             list.innerHTML = '';
-
             if(tasks.length === 0) {
-                list.innerHTML = `<div class="col-span-1 md:col-span-2 text-center text-muted font-bold p-8 border-2 border-dashed border-bound rounded-lg opacity-50">No upcoming tasks.</div>`;
-                return;
+                list.innerHTML = `<div class="col-span-1 md:col-span-2 text-center text-muted font-bold p-8 border-2 border-dashed border-bound rounded-lg opacity-50">No upcoming tasks.</div>`; return;
             }
 
             tasks.forEach(task => {
@@ -1047,86 +870,27 @@
                 const totalSubs = task.subtasks.length;
                 const doneSubs = task.subtasks.filter(s => s.completed).length;
 
-                let expanderHTML = '';
-                if (totalSubs > 0) {
-                    expanderHTML = `
-                        <div class="mt-1 pl-9">
-                            <button type="button" onclick="toggleTaskExpansion('${task.id}')" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors">
-                                <i class="ph ${task.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>
-                                ${doneSubs}/${totalSubs} Subtasks
-                            </button>
-                        </div>
-                    `;
-                } else if (!task.completed) {
-                    expanderHTML = `
-                        <div class="mt-1 pl-9">
-                            <button type="button" onclick="toggleTaskExpansion('${task.id}', true)" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity">
-                                <i class="ph ph-plus text-sm"></i> Add Subtask
-                            </button>
-                        </div>
-                    `;
-                }
+                let expanderHTML = totalSubs > 0 
+                    ? `<div class="mt-1 pl-9"><button type="button" onclick="toggleTaskExpansion('${task.id}')" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"><i class="ph ${task.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>${doneSubs}/${totalSubs} Subtasks</button></div>`
+                    : (!task.completed ? `<div class="mt-1 pl-9"><button type="button" onclick="toggleTaskExpansion('${task.id}', true)" class="text-muted hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100"><i class="ph ph-plus text-sm"></i> Add Subtask</button></div>` : '');
 
-                let subtasksHTML = '';
-                let addSubtaskHTML = '';
-
+                let subtasksHTML = ''; let addSubtaskHTML = '';
                 if (task.isExpanded) {
                     if (totalSubs > 0) {
                         subtasksHTML = '<div class="flex flex-col gap-2 mt-3 mb-2 pl-9">';
                         task.subtasks.forEach(sub => {
-                            subtasksHTML += `
-                                <div class="flex items-center justify-between group">
-                                    <div class="flex items-center gap-2">
-                                        <button type="button" onclick="toggleSubtask('${task.id}', '${sub.id}')" class="w-4 h-4 rounded border-2 border-bound flex items-center justify-center bg-panel shrink-0 transition-colors ${sub.completed ? 'bg-content text-panel' : ''}">
-                                            ${sub.completed ? '<i class="ph ph-check text-[10px] font-bold"></i>' : ''}
-                                        </button>
-                                        <span class="text-sm font-bold text-content ${sub.completed ? 'line-through opacity-50' : ''}">${sub.title}</span>
-                                    </div>
-                                    <button type="button" onclick="deleteSubtask('${task.id}', '${sub.id}')" class="opacity-0 group-hover:opacity-100 text-muted hover:text-brand-red transition-opacity"><i class="ph ph-x"></i></button>
-                                </div>
-                            `;
+                            subtasksHTML += `<div class="flex items-center justify-between group"><div class="flex items-center gap-2"><button type="button" onclick="toggleSubtask('${task.id}', '${sub.id}')" class="w-4 h-4 rounded border-2 border-bound flex items-center justify-center bg-panel shrink-0 transition-colors ${sub.completed ? 'bg-content text-panel' : ''}">${sub.completed ? '<i class="ph ph-check text-[10px] font-bold"></i>' : ''}</button><span class="text-sm font-bold text-content ${sub.completed ? 'line-through opacity-50' : ''}">${sub.title}</span></div><button type="button" onclick="deleteSubtask('${task.id}', '${sub.id}')" class="opacity-0 group-hover:opacity-100 text-muted hover:text-brand-red"><i class="ph ph-x"></i></button></div>`;
                         });
                         subtasksHTML += '</div>';
                     }
-
                     if (!task.completed) {
-                        addSubtaskHTML = `
-                            <div class="flex items-center gap-2 mt-2 pl-9 mb-2">
-                                <input type="text" id="subtaskInput-${task.id}" placeholder="Add subtask..." class="neo-input text-xs px-3 py-2 w-full rounded font-bold text-content" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')">
-                                <button type="button" onclick="addSubtask('${task.id}')" class="neo-btn neo-btn-blue px-3 py-2 rounded text-xs"><i class="ph ph-plus"></i></button>
-                            </div>
-                        `;
+                        addSubtaskHTML = `<div class="flex items-center gap-2 mt-2 pl-9 mb-2"><input type="text" id="subtaskInput-${task.id}" placeholder="Add subtask..." class="neo-input text-xs px-3 py-2 w-full rounded font-bold text-content" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')"><button type="button" onclick="addSubtask('${task.id}')" class="neo-btn neo-btn-blue px-3 py-2 rounded text-xs"><i class="ph ph-plus"></i></button></div>`;
                     }
                 }
 
-                list.innerHTML += `
-                    <div class="neo-panel p-5 flex flex-col justify-between ${task.completed ? 'bg-panelalt opacity-60' : 'bg-panel'}">
-                        <div>
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="flex items-start gap-3 w-full">
-                                    <button type="button" onclick="toggleTaskComplete('${task.id}')" class="mt-1 w-6 h-6 rounded border-2 border-bound flex items-center justify-center bg-panel shrink-0 ${task.completed ? 'bg-content text-panel' : ''}">
-                                        ${task.completed ? '<i class="ph ph-check font-bold"></i>' : ''}
-                                    </button>
-                                    <div class="w-full">
-                                        <h4 class="font-bold text-content text-xl leading-tight ${task.completed ? 'line-through text-muted' : ''}">${task.title}</h4>
-                                    </div>
-                                </div>
-                                <button type="button" onclick="deleteTask('${task.id}')" class="text-muted hover:text-brand-red shrink-0"><i class="ph ph-trash text-xl"></i></button>
-                            </div>
-                            ${expanderHTML}
-                            ${subtasksHTML}
-                            ${addSubtaskHTML}
-                        </div>
-                        <div class="flex justify-between items-center border-t-2 border-bound border-opacity-20 pt-3 mt-4">
-                            <span class="font-mono text-xs font-black uppercase tracking-widest flex items-center gap-1 ${deadlineColor}">
-                                <i class="ph ph-calendar"></i> ${dateStr} ${isOverdue ? '(OVERDUE)' : ''}
-                            </span>
-                        </div>
-                    </div>
-                `;
+                list.innerHTML += `<div class="neo-panel p-5 flex flex-col justify-between ${task.completed ? 'bg-panelalt opacity-60' : 'bg-panel'}"><div><div class="flex items-start justify-between gap-3"><div class="flex items-start gap-3 w-full"><button type="button" onclick="toggleTaskComplete('${task.id}')" class="mt-1 w-6 h-6 rounded border-2 border-bound flex items-center justify-center bg-panel shrink-0 ${task.completed ? 'bg-content text-panel' : ''}">${task.completed ? '<i class="ph ph-check font-bold"></i>' : ''}</button><div class="w-full"><h4 class="font-bold text-content text-xl leading-tight ${task.completed ? 'line-through text-muted' : ''}">${task.title}</h4></div></div><button type="button" onclick="deleteTask('${task.id}')" class="text-muted hover:text-brand-red shrink-0"><i class="ph ph-trash text-xl"></i></button></div>${expanderHTML}${subtasksHTML}${addSubtaskHTML}</div><div class="flex justify-between items-center border-t-2 border-bound border-opacity-20 pt-3 mt-4"><span class="font-mono text-xs font-black uppercase tracking-widest flex items-center gap-1 ${deadlineColor}"><i class="ph ph-calendar"></i> ${dateStr} ${isOverdue ? '(OVERDUE)' : ''}</span></div></div>`;
             });
         }
-
 
         // --- FOCUS ENGINE LOGIC ---
         const videoElement = document.getElementById('input_video');
@@ -1139,9 +903,9 @@
         const statusText = document.getElementById('statusText');
         const scoreBar = document.getElementById('scoreBar');
         const logContainer = document.getElementById('logContainer');
-
         const graphCanvas = document.getElementById('graphCanvas');
         const graphCtx = graphCanvas ? graphCanvas.getContext('2d') : null;
+        
         if (graphCanvas) graphCanvas.style.transform = 'scaleX(1)';
 
         const offscreenCanvas = document.createElement('canvas');
@@ -1159,11 +923,15 @@
         let smoothedScore = 0;
         let currentState = 'standby'; 
 
-        // Vigilance Timers
+        // Cell Phone Detection Vars
+        let cocoSsdModel = null;
+        let objectDetectionTimer = null;
+        let phoneDetected = false;
+
         let sleepStartTime = 0;
-        const SLEEP_THRESHOLD_MS = 3000; // 3 seconds
+        const SLEEP_THRESHOLD_MS = 3000; 
         let yawnStartTime = 0;
-        const YAWN_THRESHOLD_MS = 1500;  // 1.5 seconds
+        const YAWN_THRESHOLD_MS = 1500;  
 
         let sessionTimer = null;
         let totalTimeSec = 0;
@@ -1176,9 +944,6 @@
         let scoreHistory = new Array(maxGraphPoints).fill(0);
         let sessions = JSON.parse(localStorage.getItem('vigilanceSessions')) || [];
 
-        // ============================================================================
-        // LOGGING & NOTIFICATIONS LOGIC
-        // ============================================================================
         function addLog(message, type = 'info') {
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             let colorClass = 'text-content bg-panel border-2 border-bound shadow-neo-sm';
@@ -1190,23 +955,13 @@
 
             const logEntry = document.createElement('div');
             logEntry.className = `flex items-center gap-3 p-2.5 rounded-lg ${colorClass} transition-all`;
-            logEntry.innerHTML = `
-                <div class="w-2 h-2 rounded-full border border-bound ${dotColor}"></div>
-                <div class="flex-1 font-bold tracking-tight">${message}</div>
-                <div class="text-[9px] opacity-70 tracking-wider">${time}</div>
-            `;
+            logEntry.innerHTML = `<div class="w-2 h-2 rounded-full border border-bound ${dotColor}"></div><div class="flex-1 font-bold tracking-tight">${message}</div><div class="text-[9px] opacity-70 tracking-wider">${time}</div>`;
             
-            if(logContainer && logContainer.children.length > 0 && logContainer.children[0].innerText.includes('Waiting')) {
-                logContainer.innerHTML = '';
-            }
-
+            if(logContainer && logContainer.children.length > 0 && logContainer.children[0].innerText.includes('Waiting')) logContainer.innerHTML = '';
             if(logContainer) logContainer.prepend(logEntry);
             if(logContainer && logContainer.children.length > 15) logContainer.removeChild(logContainer.lastChild);
         }
 
-        // ============================================================================
-        // SESSION HISTORY LOGIC
-        // ============================================================================
         function renderSessions() {
             const list = document.getElementById('sessionHistoryList');
             if(!list) return;
@@ -1227,29 +982,11 @@
                 else if(s.focusPercent >= 75) colorClass = "text-brand-green";
                 else if(s.focusPercent < 50) colorClass = "text-brand-red";
 
-                list.innerHTML += `
-                    <div class="flex items-center justify-between border-b-2 border-bound border-opacity-10 pb-3 hover:bg-base transition-colors p-2 rounded">
-                        <div class="flex items-center gap-3">
-                            <span class="text-3xl drop-shadow-neo-sm">${s.badgeIcon}</span>
-                            <div>
-                                <p class="font-bold ${colorClass} text-sm uppercase tracking-wider font-display">${s.badgeTitle}</p>
-                                <p class="text-[10px] font-black uppercase tracking-widest text-muted"><i class="ph ph-calendar"></i> ${dateStr} at ${timeStr}</p>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <p class="font-mono font-black ${colorClass} text-xl">${s.focusPercent}%</p>
-                            <p class="text-[9px] font-black uppercase tracking-widest text-muted">${formatTime(s.totalTime)} Total</p>
-                        </div>
-                    </div>
-                `;
+                list.innerHTML += `<div class="flex items-center justify-between border-b-2 border-bound border-opacity-10 pb-3 hover:bg-base transition-colors p-2 rounded"><div class="flex items-center gap-3"><span class="text-3xl drop-shadow-neo-sm">${s.badgeIcon}</span><div><p class="font-bold ${colorClass} text-sm uppercase tracking-wider font-display">${s.badgeTitle}</p><p class="text-[10px] font-black uppercase tracking-widest text-muted"><i class="ph ph-calendar"></i> ${dateStr} at ${timeStr}</p></div></div><div class="text-right"><p class="font-mono font-black ${colorClass} text-xl">${s.focusPercent}%</p><p class="text-[9px] font-black uppercase tracking-widest text-muted">${formatTime(s.totalTime)} Total</p></div></div>`;
             });
         }
 
-        // ============================================================================
-        // SYNTHESIZED AUDIO NOTIFICATIONS
-        // ============================================================================
         let audioCtx = null;
-
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -1265,45 +1002,56 @@
                 osc.frequency.setValueAtTime(800, audioCtx.currentTime + timeOffset);
                 gain.gain.setValueAtTime(0.1, audioCtx.currentTime + timeOffset);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + timeOffset + 0.15);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(audioCtx.currentTime + timeOffset);
-                osc.stop(audioCtx.currentTime + timeOffset + 0.15);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + timeOffset); osc.stop(audioCtx.currentTime + timeOffset + 0.15);
             };
-            playBeep(0);
-            playBeep(0.2);
+            playBeep(0); playBeep(0.2);
         }
 
         function playLeaveSound() {
             initAudio();
             if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.4);
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.4);
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(600, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
         }
 
         function playReturnSound() {
             initAudio();
             if (!audioCtx) return;
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(300, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function playSirenSound() {
+            initAudio();
+            if (!audioCtx) return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.4);
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.type = 'square';
+            
+            const now = audioCtx.currentTime;
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.linearRampToValueAtTime(1200, now + 0.4);
+            osc.frequency.linearRampToValueAtTime(600, now + 0.8);
+            osc.frequency.linearRampToValueAtTime(1200, now + 1.2);
+            osc.frequency.linearRampToValueAtTime(600, now + 1.6);
+            osc.frequency.linearRampToValueAtTime(1200, now + 2.0);
+            osc.frequency.linearRampToValueAtTime(600, now + 2.4);
+
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.linearRampToValueAtTime(0.15, now + 2.3);
+            gain.gain.linearRampToValueAtTime(0.01, now + 2.4);
+
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.4);
+            osc.start(now);
+            osc.stop(now + 2.4);
         }
 
         function formatTime(seconds) {
@@ -1314,74 +1062,40 @@
 
         function drawGraph() {
             if (!graphCtx) return;
-            const w = graphCanvas.width;
-            const h = graphCanvas.height;
-            
+            const w = graphCanvas.width; const h = graphCanvas.height;
             graphCtx.clearRect(0, 0, w, h);
             
-            const themeBorderColor = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim() || '#0F172A';
+            graphCtx.strokeStyle = 'rgba(128, 128, 128, 0.2)'; graphCtx.lineWidth = 1; graphCtx.beginPath();
+            graphCtx.moveTo(0, h/2); graphCtx.lineTo(w, h/2); graphCtx.moveTo(0, h/4); graphCtx.lineTo(w, h/4); graphCtx.moveTo(0, h*0.75); graphCtx.lineTo(w, h*0.75); graphCtx.stroke();
 
-            graphCtx.strokeStyle = 'rgba(128, 128, 128, 0.2)';
-            graphCtx.lineWidth = 1;
-            graphCtx.beginPath();
-            graphCtx.moveTo(0, h/2); graphCtx.lineTo(w, h/2);
-            graphCtx.moveTo(0, h/4); graphCtx.lineTo(w, h/4);
-            graphCtx.moveTo(0, h*0.75); graphCtx.lineTo(w, h*0.75);
-            graphCtx.stroke();
-
-            graphCtx.beginPath();
-            graphCtx.strokeStyle = '#1E3A8A';
-            graphCtx.lineWidth = 3;
-            graphCtx.lineJoin = 'round';
-            
+            graphCtx.beginPath(); graphCtx.strokeStyle = '#1E3A8A'; graphCtx.lineWidth = 3; graphCtx.lineJoin = 'round';
             const step = w / (maxGraphPoints - 1);
             for (let i = 0; i < maxGraphPoints; i++) {
-                const x = i * step;
-                const y = h - (scoreHistory[i] / 100) * h;
-                if (i === 0) graphCtx.moveTo(x, y);
-                else graphCtx.lineTo(x, y);
+                const x = i * step; const y = h - (scoreHistory[i] / 100) * h;
+                if (i === 0) graphCtx.moveTo(x, y); else graphCtx.lineTo(x, y);
             }
             graphCtx.stroke();
         }
 
+        function getDistance(p1, p2) { return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)); }
+        
         function calculateEAR(landmarks) {
-            const leftWidth = getDistance(landmarks[33], landmarks[133]);
-            const leftHeight = getDistance(landmarks[159], landmarks[145]);
-            const earLeft = leftHeight / leftWidth;
-
-            const rightWidth = getDistance(landmarks[362], landmarks[263]);
-            const rightHeight = getDistance(landmarks[386], landmarks[374]);
-            const earRight = rightHeight / rightWidth;
-
-            return (earLeft + earRight) / 2;
+            const leftWidth = getDistance(landmarks[33], landmarks[133]); const leftHeight = getDistance(landmarks[159], landmarks[145]);
+            const rightWidth = getDistance(landmarks[362], landmarks[263]); const rightHeight = getDistance(landmarks[386], landmarks[374]);
+            return ((leftHeight / leftWidth) + (rightHeight / rightWidth)) / 2;
         }
 
-        function calculateMAR(landmarks) {
-            const mouthHeight = getDistance(landmarks[13], landmarks[14]);
-            const mouthWidth = getDistance(landmarks[78], landmarks[308]);
-            return mouthHeight / mouthWidth;
-        }
+        function calculateMAR(landmarks) { return getDistance(landmarks[13], landmarks[14]) / getDistance(landmarks[78], landmarks[308]); }
 
         function calculateAttentionScore(landmarks) {
-            const nose = landmarks[1];
-            const leftEye = landmarks[33];
-            const rightEye = landmarks[263];
-            const chin = landmarks[152];
-            const forehead = landmarks[10];
-
+            const nose = landmarks[1]; const leftEye = landmarks[33]; const rightEye = landmarks[263]; const chin = landmarks[152]; const forehead = landmarks[10];
             const distLeft = Math.sqrt(Math.pow(nose.x - leftEye.x, 2) + Math.pow(nose.y - leftEye.y, 2));
             const distRight = Math.sqrt(Math.pow(nose.x - rightEye.x, 2) + Math.pow(nose.y - rightEye.y, 2));
             const yawRatio = distLeft / (distLeft + distRight);
-            
             const distUp = Math.sqrt(Math.pow(nose.x - forehead.x, 2) + Math.pow(nose.y - forehead.y, 2));
             const distDown = Math.sqrt(Math.pow(nose.x - chin.x, 2) + Math.pow(nose.y - chin.y, 2));
             const pitchRatio = distUp / (distUp + distDown);
-
-            const yawDeviation = Math.abs(yawRatio - 0.5) * 2;
-            const pitchDeviation = Math.abs(pitchRatio - 0.45) * 2; 
-
-            let totalDeviation = (yawDeviation * 0.7) + (pitchDeviation * 0.3);
-            let rawScore = 100 - (totalDeviation * 150);
+            let rawScore = 100 - (((Math.abs(yawRatio - 0.5) * 2) * 0.7) + ((Math.abs(pitchRatio - 0.45) * 2) * 0.3)) * 150;
             return Math.max(0, Math.min(100, rawScore));
         }
 
@@ -1390,64 +1104,65 @@
             const displayScore = Math.round(smoothedScore);
 
             if(scoreBar) scoreBar.style.width = `${displayScore}%`;
-            scoreHistory.shift();
-            scoreHistory.push(displayScore);
-            drawGraph();
+            scoreHistory.shift(); scoreHistory.push(displayScore); drawGraph();
 
             let newState = 'focused';
             
-            if (!isRunning) {
-                newState = 'standby';
-            } 
-            else if (currentScore === 0 && currentEar === 1.0 && sleepStartTime === 0) {
-                newState = 'missing';
-            } 
-            else if (sleepStartTime > 0 && (performance.now() - sleepStartTime > SLEEP_THRESHOLD_MS)) {
-                newState = 'drowsy'; 
-            } 
-            else if (yawnStartTime > 0 && (performance.now() - yawnStartTime > YAWN_THRESHOLD_MS)) {
-                newState = 'yawning'; 
-            }
-            else if (displayScore < 40) {
-                newState = 'distracted'; 
-            }
+            if (!isRunning) newState = 'standby';
+            else if (phoneDetected) newState = 'contraband';
+            else if (currentScore === 0 && currentEar === 1.0 && sleepStartTime === 0) newState = 'missing';
+            else if (sleepStartTime > 0 && (performance.now() - sleepStartTime > SLEEP_THRESHOLD_MS)) newState = 'drowsy'; 
+            else if (yawnStartTime > 0 && (performance.now() - yawnStartTime > YAWN_THRESHOLD_MS)) newState = 'yawning'; 
+            else if (displayScore < 40) newState = 'distracted'; 
             
             if (newState !== currentState) {
                 let justReturned = false;
                 
                 if (currentState === 'missing' && (newState === 'focused' || newState === 'standby' || newState === 'distracted')) {
-                    playReturnSound();
-                    justReturned = true; 
+                    playReturnSound(); justReturned = true; 
                 }
                 
-                currentState = newState;
+                if(scoreBar) scoreBar.classList.remove('siren-animation');
                 
+                currentState = newState;
                 if(!statusText) return;
 
                 if (currentState === 'focused') {
                     statusText.innerText = 'Flow State';
                     statusText.className = 'text-4xl font-display font-black text-brand-green uppercase tracking-widest block mb-4';
                     if(scoreBar) scoreBar.style.backgroundColor = '#047857';
-                    addLog('Subject engaged. Focus verified.', 'success');
-                } else if (currentState === 'drowsy') {
+                } 
+                else if (currentState === 'contraband') {
+                    statusText.innerText = 'PHONE CAUGHT!';
+                    statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
+                    if(scoreBar) {
+                        scoreBar.style.backgroundColor = '#BE123C';
+                        scoreBar.classList.add('siren-animation');
+                    }
+                    playSirenSound(); 
+                    addLog('CRITICAL: Cell phone detected in frame.', 'error');
+                }
+                else if (currentState === 'drowsy') {
                     statusText.innerText = 'Micro-Sleep!';
                     statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
                     if(scoreBar) scoreBar.style.backgroundColor = '#BE123C';
                     addLog('CRITICAL: Micro-sleep detected.', 'error');
                     playAlertSound(); 
-                } else if (currentState === 'yawning') {
+                } 
+                else if (currentState === 'yawning') {
                     statusText.innerText = 'Fatigue (Yawn)';
                     statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
                     if(scoreBar) scoreBar.style.backgroundColor = '#BE123C';
-                    addLog('Fatigue Warning: Yawn detected.', 'error');
+                    addLog('Fatigue Warning: Yawn detected.', 'warning');
                     playAlertSound(); 
-                } else if (currentState === 'distracted') {
+                } 
+                else if (currentState === 'distracted') {
                     statusText.innerText = 'Looking Away';
                     statusText.className = 'text-4xl font-display font-black text-brand-amber uppercase tracking-widest block mb-4';
                     if(scoreBar) scoreBar.style.backgroundColor = '#D97706';
-                    addLog('Eye contact lost. Subject distracted.', 'warning');
                     if (!justReturned) playAlertSound(); 
-                } else if (currentState === 'missing') {
+                } 
+                else if (currentState === 'missing') {
                     statusText.innerText = 'Absent';
                     statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
                     if(scoreBar) scoreBar.style.backgroundColor = '#BE123C';
@@ -1487,7 +1202,7 @@
                             onCameraSec++;
                             const onCamUi = document.getElementById('uiOnCamera');
                             if(onCamUi) onCamUi.innerText = formatTime(onCameraSec);
-                        } else if(currentState === 'missing' || currentState === 'drowsy' || currentState === 'yawning' || currentState === 'distracted') {
+                        } else if(currentState === 'missing' || currentState === 'drowsy' || currentState === 'yawning' || currentState === 'distracted' || currentState === 'contraband') {
                             offCameraSec++;
                             const offCamUi = document.getElementById('uiOffCamera');
                             if(offCamUi) offCamUi.innerText = formatTime(offCameraSec);
@@ -1497,49 +1212,32 @@
             }
 
             if(!canvasElement || !canvasCtx) return;
-            canvasElement.width = 640;
-            canvasElement.height = 480;
-            
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            
-            if (results.image) {
-                canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-            }
+            canvasElement.width = 640; canvasElement.height = 480;
+            canvasCtx.save(); canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            if (results.image) canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
             
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                 const landmarks = results.multiFaceLandmarks[0];
+                currentEar = calculateEAR(landmarks); currentMar = calculateMAR(landmarks);
                 
-                currentEar = calculateEAR(landmarks);
-                currentMar = calculateMAR(landmarks);
-                currentScore = calculateAttentionScore(landmarks);
+                if(phoneDetected) {
+                    currentScore = 0; // Force tank score if phone detected
+                } else {
+                    currentScore = calculateAttentionScore(landmarks);
+                }
 
                 let mouthColor = currentMar > 0.45 ? '#BE123C' : 'rgba(30, 58, 138, 0.1)';
-                
                 drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: 'rgba(30, 58, 138, 0.1)', lineWidth: 1}); 
                 drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#047857', lineWidth: 2}); 
                 drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#047857', lineWidth: 2}); 
                 drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {color: mouthColor, lineWidth: 2}); 
-                drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: '#1E3A8A', lineWidth: 2});
+                drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: phoneDetected ? '#BE123C' : '#1E3A8A', lineWidth: phoneDetected ? 4 : 2});
                 
-                if (currentEar < 0.22) {
-                    if (sleepStartTime === 0) sleepStartTime = performance.now();
-                } else {
-                    sleepStartTime = 0;
-                }
-
-                if (currentMar > 0.45) {
-                    if (yawnStartTime === 0) yawnStartTime = performance.now();
-                } else {
-                    yawnStartTime = 0;
-                }
+                if (currentEar < 0.22) { if (sleepStartTime === 0) sleepStartTime = performance.now(); } else { sleepStartTime = 0; }
+                if (currentMar > 0.45) { if (yawnStartTime === 0) yawnStartTime = performance.now(); } else { yawnStartTime = 0; }
 
             } else {
-                currentScore = 0;
-                currentEar = 1.0; 
-                currentMar = 0.0;
-                sleepStartTime = 0; 
-                yawnStartTime = 0;
+                currentScore = 0; currentEar = 1.0; currentMar = 0.0; sleepStartTime = 0; yawnStartTime = 0;
             }
             
             canvasCtx.restore();
@@ -1560,8 +1258,7 @@
         async function initModel() {
             if (isInitializing || isRunning) return; 
             isInitializing = true;
-            sleepStartTime = 0;
-            yawnStartTime = 0;
+            sleepStartTime = 0; yawnStartTime = 0; phoneDetected = false;
             
             initAudio(); 
             addLog('Booting Cognitive Engine...', 'info');
@@ -1576,88 +1273,64 @@
             if(document.getElementById('uiBreaks')) document.getElementById('uiBreaks').innerText = "0";
 
             try {
-                if (loadingTextObj) loadingTextObj.innerText = "1/4: WAKING UP WEBCAM...";
-                addLog('Accessing Hardware...', 'info');
-                const nativeStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
-                });
+                if (loadingTextObj) loadingTextObj.innerText = "1/5: WAKING UP WEBCAM...";
+                const nativeStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" } });
 
                 if(videoElement) {
-                    videoElement.srcObject = nativeStream;
-                    videoElement.muted = true;
-                    videoElement.playsInline = true;
-                    videoElement.classList.remove('hidden');
+                    videoElement.srcObject = nativeStream; videoElement.muted = true; videoElement.playsInline = true; videoElement.classList.remove('hidden');
                     videoElement.style.cssText = 'position: fixed; top: -10000px; left: -10000px; width: 640px; height: 480px; z-index: -1; pointer-events: none;';
                 }
 
-                if (loadingTextObj) loadingTextObj.innerText = "2/4: MOUNTING VIDEO FEED...";
-                addLog('Mounting Stream...', 'info');
-                
+                if (loadingTextObj) loadingTextObj.innerText = "2/5: MOUNTING VIDEO FEED...";
                 if(videoElement) {
                     await Promise.race([
-                        new Promise((resolve) => {
-                            if (videoElement.readyState >= 2) { 
-                                videoElement.play().then(resolve).catch(resolve);
-                            } else { 
-                                videoElement.onloadeddata = () => {
-                                    videoElement.play().then(resolve).catch(resolve);
-                                };
-                            }
-                        }),
+                        new Promise((resolve) => { if (videoElement.readyState >= 2) { videoElement.play().then(resolve).catch(resolve); } else { videoElement.onloadeddata = () => { videoElement.play().then(resolve).catch(resolve); }; } }),
                         new Promise(resolve => setTimeout(resolve, 3000)) 
                     ]);
                 }
 
                 if(!faceMesh) {
-                    if (loadingTextObj) loadingTextObj.innerText = "3/4: FETCHING AI FILES...";
-                    addLog('Downloading Weights...', 'info');
+                    if (loadingTextObj) loadingTextObj.innerText = "3/5: FETCHING OPTICS AI...";
                     faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
                     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
                     faceMesh.onResults(onResults);
                 }
 
-                if (loadingTextObj) loadingTextObj.innerText = "4/4: COMPILING AI ENGINE (WAIT FOR IT)...";
+                if(!cocoSsdModel) {
+                    if (loadingTextObj) loadingTextObj.innerText = "4/5: LOADING CONTRABAND SCANNER...";
+                    addLog('Fetching Object Detection...', 'info');
+                    cocoSsdModel = await cocoSsd.load();
+                }
+
+                if (loadingTextObj) loadingTextObj.innerText = "5/5: COMPILING ENGINES (WAIT FOR IT)...";
                 addLog('Compiling Tensors...', 'info');
                 
                 isRunning = true;
                 processVideoFrame();
                 addLog('Sensors Locked. Monitoring active.', 'success');
 
+                // Start Object Detection Loop for Cell Phones
+                objectDetectionTimer = setInterval(async () => {
+                    if (!isRunning || !cocoSsdModel || !videoElement || videoElement.readyState < 2) return;
+                    try {
+                        const predictions = await cocoSsdModel.detect(videoElement);
+                        phoneDetected = predictions.some(p => p.class === 'cell phone' && p.score > 0.45);
+                    } catch(e) {}
+                }, 800); // Check every 800ms to save CPU
+
             } catch (error) {
                 if(loadingOverlay) loadingOverlay.classList.add('hidden');
                 isInitializing = false;
-                console.error("NATIVE CAMERA ERROR:", error);
-                
-                let stepInfo = loadingTextObj ? `\nFailed at: ${loadingTextObj.innerText}` : "";
-                
-                if (error.message && error.message.toLowerCase().includes("timeout")) {
-                    alert("HARDWARE TIMEOUT: Your webcam is taking too long to start. It is likely being used by another app (like Zoom, OBS, or a Screen Recorder). Please close them and refresh." + stepInfo);
-                } else if (error.name === "NotFoundError" || error.name === "OverconstrainedError") {
-                    alert("HARDWARE ERROR: We cannot detect any physical webcam plugged into your device." + stepInfo);
-                } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-                    alert("HARDWARE CONFLICT: Your camera is blocked by Antivirus or actively being used by another application." + stepInfo);
-                } else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-                    alert("PERMISSION ERROR: You blocked camera access in your browser settings. Please click the camera icon in your URL bar to allow it." + stepInfo);
-                } else {
-                    alert("Initialization Failed: " + (error.message || "Unknown error.") + stepInfo);
-                }
                 addLog('Hardware initialization failed.', 'error');
             }
         }
 
         function endSession() {
-            isRunning = false;
-            isInitializing = false;
-            
-            if (videoElement && videoElement.srcObject) {
-                videoElement.srcObject.getTracks().forEach(track => track.stop());
-                videoElement.srcObject = null;
-            }
-            
-            clearInterval(sessionTimer);
-            sessionTimer = null; 
-            sleepStartTime = 0;
-            yawnStartTime = 0;
+            isRunning = false; isInitializing = false;
+            if (videoElement && videoElement.srcObject) { videoElement.srcObject.getTracks().forEach(track => track.stop()); videoElement.srcObject = null; }
+            clearInterval(sessionTimer); sessionTimer = null; 
+            clearInterval(objectDetectionTimer); objectDetectionTimer = null; phoneDetected = false;
+            sleepStartTime = 0; yawnStartTime = 0;
             addLog('Session Terminated.', 'info');
             
             if(canvasElement) canvasElement.classList.add('hidden');
@@ -1666,122 +1339,54 @@
             if(stopBtn) stopBtn.classList.add('hidden');
             
             currentScore = 0; smoothedScore = 0; currentState = 'standby';
-            if(statusText) {
-                statusText.innerText = 'Standby';
-                statusText.className = 'text-4xl font-display font-black text-content uppercase tracking-widest block mb-4';
-            }
-            if(scoreBar) scoreBar.style.backgroundColor = 'var(--color-content)';
+            if(statusText) { statusText.innerText = 'Standby'; statusText.className = 'text-4xl font-display font-black text-content uppercase tracking-widest block mb-4'; }
+            if(scoreBar) { scoreBar.style.backgroundColor = 'var(--color-content)'; scoreBar.classList.remove('siren-animation'); }
             if(canvasCtx && canvasElement) canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
             showSummary();
         }
 
         function showSummary() {
-            const sumTotal = document.getElementById('sumTotal');
-            if(sumTotal) sumTotal.innerText = formatTime(totalTimeSec);
-            
-            const sumOnCam = document.getElementById('sumOnCamera');
-            if(sumOnCam) sumOnCam.innerText = formatTime(onCameraSec);
-            
-            const sumOffCam = document.getElementById('sumOffCamera');
-            if(sumOffCam) sumOffCam.innerText = formatTime(offCameraSec);
-            
-            const sumBreaks = document.getElementById('sumBreaks');
-            if(sumBreaks) sumBreaks.innerText = breaksCount;
-
+            const sumTotal = document.getElementById('sumTotal'); if(sumTotal) sumTotal.innerText = formatTime(totalTimeSec);
+            const sumOnCam = document.getElementById('sumOnCamera'); if(sumOnCam) sumOnCam.innerText = formatTime(onCameraSec);
+            const sumOffCam = document.getElementById('sumOffCamera'); if(sumOffCam) sumOffCam.innerText = formatTime(offCameraSec);
+            const sumBreaks = document.getElementById('sumBreaks'); if(sumBreaks) sumBreaks.innerText = breaksCount;
             const focusPercent = totalTimeSec > 0 ? (onCameraSec / totalTimeSec) : 0;
-            const badgeIcon = document.getElementById('badgeIcon');
-            const badgeTitle = document.getElementById('badgeTitle');
-            const badgeDesc = document.getElementById('badgeDesc');
+            const badgeIcon = document.getElementById('badgeIcon'); const badgeTitle = document.getElementById('badgeTitle'); const badgeDesc = document.getElementById('badgeDesc');
 
             if(badgeIcon && badgeTitle && badgeDesc) {
-                if (totalTimeSec < 60) {
-                    badgeIcon.innerText = "⏱️";
-                    badgeTitle.innerText = "Too Short";
-                    badgeTitle.className = "text-2xl font-black text-content uppercase tracking-widest";
-                    badgeDesc.innerText = "Session was less than 1 minute.";
-                } else if (focusPercent >= 0.90 && breaksCount <= 2) {
-                    badgeIcon.innerText = "💎";
-                    badgeTitle.innerText = "Diamond Focus";
-                    badgeTitle.className = "text-2xl font-black text-brand-blue uppercase tracking-widest";
-                    badgeDesc.innerText = "Incredible concentration. Deep state achieved.";
-                } else if (focusPercent >= 0.75) {
-                    badgeIcon.innerText = "🥇";
-                    badgeTitle.innerText = "Gold Scholar";
-                    badgeTitle.className = "text-2xl font-black text-brand-green uppercase tracking-widest";
-                    badgeDesc.innerText = "Solid work session with minimal disruptions.";
-                } else if (focusPercent >= 0.50) {
-                    badgeIcon.innerText = "🥈";
-                    badgeTitle.innerText = "Silver Thinker";
-                    badgeTitle.className = "text-2xl font-black text-content uppercase tracking-widest";
-                    badgeDesc.innerText = "Good effort, but try to reduce away-time.";
-                } else {
-                    badgeIcon.innerText = "☁️";
-                    badgeTitle.innerText = "Wandering Mind";
-                    badgeTitle.className = "text-2xl font-black text-brand-amber uppercase tracking-widest";
-                    badgeDesc.innerText = "Highly distracted session. Time to regroup.";
-                }
+                if (totalTimeSec < 60) { badgeIcon.innerText = "⏱️"; badgeTitle.innerText = "Too Short"; badgeTitle.className = "text-2xl font-black text-content uppercase tracking-widest"; badgeDesc.innerText = "Session was less than 1 minute."; } 
+                else if (focusPercent >= 0.90 && breaksCount <= 2) { badgeIcon.innerText = "💎"; badgeTitle.innerText = "Diamond Focus"; badgeTitle.className = "text-2xl font-black text-brand-blue uppercase tracking-widest"; badgeDesc.innerText = "Incredible concentration. Deep state achieved."; } 
+                else if (focusPercent >= 0.75) { badgeIcon.innerText = "🥇"; badgeTitle.innerText = "Gold Scholar"; badgeTitle.className = "text-2xl font-black text-brand-green uppercase tracking-widest"; badgeDesc.innerText = "Solid work session with minimal disruptions."; } 
+                else if (focusPercent >= 0.50) { badgeIcon.innerText = "🥈"; badgeTitle.innerText = "Silver Thinker"; badgeTitle.className = "text-2xl font-black text-content uppercase tracking-widest"; badgeDesc.innerText = "Good effort, but try to reduce away-time."; } 
+                else { badgeIcon.innerText = "☁️"; badgeTitle.innerText = "Wandering Mind"; badgeTitle.className = "text-2xl font-black text-brand-amber uppercase tracking-widest"; badgeDesc.innerText = "Highly distracted session. Time to regroup."; }
             }
 
-            const summaryModal = document.getElementById('summaryModal');
-            if(summaryModal) summaryModal.classList.remove('hidden');
-
+            const summaryModal = document.getElementById('summaryModal'); if(summaryModal) summaryModal.classList.remove('hidden');
             if (totalTimeSec > 10) {
-                sessions.unshift({
-                    id: generateId(),
-                    timestamp: Date.now(),
-                    totalTime: totalTimeSec,
-                    focusTime: onCameraSec,
-                    breaks: breaksCount,
-                    focusPercent: Math.round(focusPercent * 100),
-                    badgeIcon: badgeIcon ? badgeIcon.innerText : "☁️",
-                    badgeTitle: badgeTitle ? badgeTitle.innerText : "Wandering Mind"
-                });
-                
+                sessions.unshift({ id: generateId(), timestamp: Date.now(), totalTime: totalTimeSec, focusTime: onCameraSec, breaks: breaksCount, focusPercent: Math.round(focusPercent * 100), badgeIcon: badgeIcon ? badgeIcon.innerText : "☁️", badgeTitle: badgeTitle ? badgeTitle.innerText : "Wandering Mind" });
                 if(sessions.length > 50) sessions.pop(); 
-                
-                localStorage.setItem('vigilanceSessions', JSON.stringify(sessions));
-                renderSessions();
+                localStorage.setItem('vigilanceSessions', JSON.stringify(sessions)); renderSessions();
             }
         }
 
-        function closeSummary() {
-            const summaryModal = document.getElementById('summaryModal');
-            if(summaryModal) summaryModal.classList.add('hidden');
-        }
+        function closeSummary() { const summaryModal = document.getElementById('summaryModal'); if(summaryModal) summaryModal.classList.add('hidden'); }
 
         function generateAIReport() {
             const thisMondayTimestamp = getMondayDate(new Date()).getTime();
-            
-            // Strictly filter tasks completed THIS week
             let completedTasks = tasks.filter(t => t.completed && t.completedAt && t.completedAt >= thisMondayTimestamp).length;
-            
             let currentWeekHabits = 0; let lastWeekHabits = 0;
-            habits.forEach(h => {
-                currentWeekHabits += h.days.filter(Boolean).length;
-                lastWeekHabits += (h.lastWeekCount || 0);
-            });
+            habits.forEach(h => { currentWeekHabits += h.days.filter(Boolean).length; lastWeekHabits += (h.lastWeekCount || 0); });
             
-            let percentChange = 0;
-            let trendStr = "";
-            if (lastWeekHabits > 0) {
-                percentChange = Math.round(((currentWeekHabits - lastWeekHabits) / lastWeekHabits) * 100);
-                trendStr = percentChange >= 0 ? `(+${percentChange}% vs last week 📈)` : `(${percentChange}% vs last week 📉)`;
-            } else if (lastWeekHabits === 0 && currentWeekHabits > 0) {
-                percentChange = 100;
-                trendStr = `(+100% vs last week 📈)`;
-            }
+            let percentChange = 0; let trendStr = "";
+            if (lastWeekHabits > 0) { percentChange = Math.round(((currentWeekHabits - lastWeekHabits) / lastWeekHabits) * 100); trendStr = percentChange >= 0 ? `(+${percentChange}% vs last week 📈)` : `(${percentChange}% vs last week 📉)`; } 
+            else if (lastWeekHabits === 0 && currentWeekHabits > 0) { percentChange = 100; trendStr = `(+100% vs last week 📈)`; }
 
             const thisWeekSessions = sessions.filter(s => s.timestamp >= thisMondayTimestamp);
             const totalSessionSecondsThisWeek = thisWeekSessions.reduce((sum, s) => sum + s.totalTime, 0);
-            
-            const today = new Date();
-            const currentDayIndex = (today.getDay() + 6) % 7; 
-            const elapsedDays = currentDayIndex + 1; 
+            const today = new Date(); const currentDayIndex = (today.getDay() + 6) % 7; const elapsedDays = currentDayIndex + 1; 
             
             const avgSecondsPerDay = Math.round(totalSessionSecondsThisWeek / elapsedDays) || 0;
-            const avgMins = Math.floor(avgSecondsPerDay / 60);
-            const avgSecs = String(avgSecondsPerDay % 60).padStart(2, '0');
+            const avgMins = Math.floor(avgSecondsPerDay / 60); const avgSecs = String(avgSecondsPerDay % 60).padStart(2, '0');
             const avgTimeStr = `${avgMins}m ${avgSecs}s`;
 
             let insight = "";
@@ -1791,116 +1396,34 @@
             else if (currentWeekHabits === 0 && completedTasks === 0) insight = "System resting. Ready to attack the next deep work session. 🔋";
             else insight = "Maintaining the baseline. Focusing on ruthless execution. 🧠";
 
-            // Visual HTML optimized for PNG export via html2canvas
-            // Hardcoded colors ensure the export looks correct even if app is in dark mode
-            const visualHTML = `
-                <div id="exportableReport" class="bg-[#ECEAE4] p-6 text-left mx-auto relative shadow-[4px_4px_0px_0px_#0F172A] border-[3px] border-[#0F172A] rounded-xl" style="width: 480px; box-sizing: border-box; color: #0F172A;">
-                    <div class="absolute -right-4 -top-4 opacity-10 text-8xl">✨</div>
-                    
-                    <div class="border-b-[3px] border-[#0F172A] pb-3 mb-4 flex justify-between items-center relative z-10">
-                        <h3 class="font-display font-black text-2xl text-[#0F172A] uppercase tracking-widest" style="margin:0;">LockIn Receipt</h3>
-                        <span class="font-mono text-xs font-bold text-[#475569]">${new Date().toLocaleDateString()}</span>
-                    </div>
-                    
-                    <div class="space-y-4 font-mono font-bold text-sm text-[#0F172A] relative z-10">
-                        <div class="flex justify-between items-center border-b-[3px] border-dashed border-[#0F172A]/20 pb-2">
-                            <span class="flex items-center gap-2"><i class="ph-fill ph-target text-[#BE123C] text-xl"></i> Tasks Crushed</span>
-                            <span class="text-xl bg-[#1E3A8A] text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-[#0F172A]">${completedTasks}</span>
-                        </div>
-                        <div class="flex justify-between items-center border-b-[3px] border-dashed border-[#0F172A]/20 pb-2">
-                            <span class="flex items-center gap-2"><i class="ph-fill ph-plant text-[#047857] text-xl"></i> Habits Watered</span>
-                            <span class="text-xl bg-[#047857] text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-[#0F172A]">${currentWeekHabits}</span>
-                        </div>
-                        <div class="flex justify-between items-center border-b-[3px] border-dashed border-[#0F172A]/20 pb-2">
-                            <span class="flex items-center gap-2"><i class="ph-fill ph-hourglass-medium text-[#1E3A8A] text-xl"></i> Daily Avg.</span>
-                            <span class="text-xl bg-[#0F172A] text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-[#0F172A]">${avgTimeStr}</span>
-                        </div>
-                        <div class="flex justify-between items-center pb-1 mt-2">
-                            <span class="flex items-center gap-2"><i class="ph-fill ph-fire text-[#D97706] text-xl"></i> Momentum</span>
-                            <span class="text-[#D97706] text-lg font-black bg-orange-100 px-3 py-1 rounded border-2 border-[#D97706] shadow-[2px_2px_0px_0px_#D97706]">${percentChange > 0 ? '+'+percentChange : percentChange}%</span>
-                        </div>
-                    </div>
-
-                    <div class="mt-6 bg-[#D1CCC4] border-[3px] border-[#0F172A] p-4 rounded-lg shadow-[inset_2px_2px_0px_0px_rgba(0,0,0,0.1)] relative z-10">
-                        <p class="text-[10px] uppercase font-black tracking-widest text-[#0F172A] mb-2 flex items-center gap-1"><i class="ph-fill ph-robot text-[#1E3A8A] text-sm"></i> AI Vibe Check</p>
-                        <p class="text-base font-bold leading-tight">"${insight}"</p>
-                    </div>
-                </div>
-            `;
-
-            const reportVisual = document.getElementById('reportVisual');
-            if(reportVisual) reportVisual.innerHTML = visualHTML;
-
+            const visualHTML = `<div id="exportableReport" class="bg-[#ECEAE4] p-6 text-left mx-auto relative shadow-[4px_4px_0px_0px_#0F172A] border-[3px] border-[#0F172A] rounded-xl" style="width: 480px; box-sizing: border-box; color: #0F172A;"><div class="absolute -right-4 -top-4 opacity-10 text-8xl">✨</div><div class="border-b-[3px] border-[#0F172A] pb-3 mb-4 flex justify-between items-center relative z-10"><h3 class="font-display font-black text-2xl text-[#0F172A] uppercase tracking-widest" style="margin:0;">LockIn Receipt</h3><span class="font-mono text-xs font-bold text-[#475569]">${new Date().toLocaleDateString()}</span></div><div class="space-y-4 font-mono font-bold text-sm text-[#0F172A] relative z-10"><div class="flex justify-between items-center border-b-[3px] border-dashed border-[#0F172A]/20 pb-2"><span class="flex items-center gap-2"><i class="ph-fill ph-target text-[#BE123C] text-xl"></i> Tasks Crushed</span><span class="text-xl bg-[#1E3A8A] text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-[#0F172A]">${completedTasks}</span></div><div class="flex justify-between items-center border-b-[3px] border-dashed border-[#0F172A]/20 pb-2"><span class="flex items-center gap-2"><i class="ph-fill ph-plant text-[#047857] text-xl"></i> Habits Watered</span><span class="text-xl bg-[#047857] text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-[#0F172A]">${currentWeekHabits}</span></div><div class="flex justify-between items-center border-b-[3px] border-dashed border-[#0F172A]/20 pb-2"><span class="flex items-center gap-2"><i class="ph-fill ph-hourglass-medium text-[#1E3A8A] text-xl"></i> Daily Avg.</span><span class="text-xl bg-[#0F172A] text-white px-3 py-1 rounded shadow-[2px_2px_0px_0px_#0F172A] border-2 border-[#0F172A]">${avgTimeStr}</span></div><div class="flex justify-between items-center pb-1 mt-2"><span class="flex items-center gap-2"><i class="ph-fill ph-fire text-[#D97706] text-xl"></i> Momentum</span><span class="text-[#D97706] text-lg font-black bg-orange-100 px-3 py-1 rounded border-2 border-[#D97706] shadow-[2px_2px_0px_0px_#D97706]">${percentChange > 0 ? '+'+percentChange : percentChange}%</span></div></div><div class="mt-6 bg-[#D1CCC4] border-[3px] border-[#0F172A] p-4 rounded-lg shadow-[inset_2px_2px_0px_0px_rgba(0,0,0,0.1)] relative z-10"><p class="text-[10px] uppercase font-black tracking-widest text-[#0F172A] mb-2 flex items-center gap-1"><i class="ph-fill ph-robot text-[#1E3A8A] text-sm"></i> AI Vibe Check</p><p class="text-base font-bold leading-tight">"${insight}"</p></div></div>`;
+            const reportVisual = document.getElementById('reportVisual'); if(reportVisual) reportVisual.innerHTML = visualHTML;
             const report = `🔥 LockIn | Execution Report\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎯 Objectives Secured: ${completedTasks}\n✅ Habits Maintained: ${currentWeekHabits} ${trendStr}\n⏳ Avg. Daily Study: ${avgTimeStr}\n⚡ AI Insight: ${insight}\n\nOutwork everyone.\n#LockedIn #DeepWork`;
-
-            const reportText = document.getElementById('reportText');
-            if(reportText) reportText.value = report;
-            
-            const reportModal = document.getElementById('reportModal');
-            if(reportModal) reportModal.classList.remove('hidden');
+            const reportText = document.getElementById('reportText'); if(reportText) reportText.value = report;
+            const reportModal = document.getElementById('reportModal'); if(reportModal) reportModal.classList.remove('hidden');
         }
 
-        // Generate high-resolution PNG using html2canvas
         async function downloadReportImage() {
-            const reportNode = document.getElementById('exportableReport');
-            if (!reportNode) return;
-            
-            const downloadBtn = document.getElementById('downloadBtn');
-            const originalText = downloadBtn.innerHTML;
-            
-            downloadBtn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> Rendering Image...';
-            downloadBtn.disabled = true;
-            
+            const reportNode = document.getElementById('exportableReport'); if (!reportNode) return;
+            const downloadBtn = document.getElementById('downloadBtn'); const originalText = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> Rendering Image...'; downloadBtn.disabled = true;
             try {
-                const canvas = await html2canvas(reportNode, {
-                    scale: 2, 
-                    useCORS: true,
-                    backgroundColor: null
-                });
-                
-                const link = document.createElement('a');
-                const dateStr = new Date().toISOString().split('T')[0];
-                link.download = `LockIn_Receipt_${dateStr}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                
-                downloadBtn.innerHTML = '<i class="ph ph-check"></i> Image Saved!';
-                downloadBtn.classList.remove('neo-btn-blue');
-                downloadBtn.classList.add('bg-brand-green', 'text-white', 'border-bound');
-                
-            } catch (err) {
-                console.error("Image generation failed:", err);
-                downloadBtn.innerHTML = 'Error Generating Image';
-            }
-            
-            setTimeout(() => {
-                downloadBtn.innerHTML = originalText;
-                downloadBtn.disabled = false;
-                downloadBtn.classList.add('neo-btn-blue');
-                downloadBtn.classList.remove('bg-brand-green', 'text-white', 'border-bound');
-            }, 3000);
+                const canvas = await html2canvas(reportNode, { scale: 2, useCORS: true, backgroundColor: null });
+                const link = document.createElement('a'); link.download = `LockIn_Receipt_${new Date().toISOString().split('T')[0]}.png`; link.href = canvas.toDataURL('image/png'); link.click();
+                downloadBtn.innerHTML = '<i class="ph ph-check"></i> Image Saved!'; downloadBtn.classList.remove('neo-btn-blue'); downloadBtn.classList.add('bg-brand-green', 'text-white', 'border-bound');
+            } catch (err) { console.error("Image generation failed:", err); downloadBtn.innerHTML = 'Error Generating Image'; }
+            setTimeout(() => { downloadBtn.innerHTML = originalText; downloadBtn.disabled = false; downloadBtn.classList.add('neo-btn-blue'); downloadBtn.classList.remove('bg-brand-green', 'text-white', 'border-bound'); }, 3000);
         }
 
         function copyReport() {
-            const text = document.getElementById('reportText');
-            if(text) {
-                text.select();
-                document.execCommand('copy');
-            }
-            const copyBtn = document.getElementById('copyBtn');
-            if(copyBtn) copyBtn.innerHTML = '<i class="ph ph-check"></i> Copied to Clipboard!';
+            const text = document.getElementById('reportText'); if(text) { text.select(); document.execCommand('copy'); }
+            const copyBtn = document.getElementById('copyBtn'); if(copyBtn) copyBtn.innerHTML = '<i class="ph ph-check"></i> Copied to Clipboard!';
         }
 
-        function closeReport() {
-            const reportModal = document.getElementById('reportModal');
-            if(reportModal) reportModal.classList.add('hidden');
-        }
+        function closeReport() { const reportModal = document.getElementById('reportModal'); if(reportModal) reportModal.classList.add('hidden'); }
 
         // Boot up sequence
-        renderHabits(); 
-        renderTasks(); 
-        renderSessions();
-        setTimeout(resizeHabitsGraph, 100);
+        renderHabits(); renderTasks(); renderSessions(); setTimeout(resizeHabitsGraph, 100);
     </script>
 </body>
 </html>
