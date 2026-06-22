@@ -70,6 +70,12 @@
         .habit-checkbox:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px 0px #0F172A; }
         .habit-checkbox:disabled { opacity: 0.3; background-color: #D1CCC4; cursor: not-allowed !important; }
 
+        .subhabit-checkbox { appearance: none; width: 18px; height: 18px; border: 2px solid #0F172A; border-radius: 4px; background-color: #FFFFFF; position: relative; box-shadow: 2px 2px 0px 0px #0F172A; transition: all 0.1s; cursor: pointer; }
+        .subhabit-checkbox:checked { background-color: #2563EB; border-color: #2563EB; }
+        .subhabit-checkbox:checked::after { content: '✓'; position: absolute; color: white; font-weight: bold; font-size: 12px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .subhabit-checkbox:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px 0px #0F172A; }
+        .subhabit-checkbox:disabled { opacity: 0.3; background-color: #D1CCC4; cursor: not-allowed !important; }
+
         .siren-animation { animation: pulseSiren 0.5s infinite; }
         @keyframes pulseSiren {
             0% { background-color: #BE123C; }
@@ -372,6 +378,27 @@
                     }
                 });
             }
+
+            // Global Click Listener for closing expanded habits and tasks
+            document.addEventListener('click', (e) => {
+                const habitList = document.getElementById('habitList');
+                const taskList = document.getElementById('taskList');
+                let changed = false;
+
+                if (habitList && !habitList.contains(e.target) && !e.target.closest('#habitInput') && !e.target.closest('button[onclick="addHabit()"]')) {
+                    habits.forEach(h => {
+                        if (h.isExpanded) { h.isExpanded = false; changed = true; }
+                    });
+                }
+                
+                if (taskList && !taskList.contains(e.target) && !e.target.closest('#taskInput') && !e.target.closest('button[onclick="addTask()"]') && !e.target.closest('button[onclick="addQuickTask()"]')) {
+                    tasks.forEach(t => {
+                        if (t.isExpanded) { t.isExpanded = false; changed = true; }
+                    });
+                }
+
+                if (changed) { saveHabits(); saveTasks(); }
+            });
         });
 
         function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
@@ -417,6 +444,9 @@
                 habits.forEach(h => {
                     h.lastWeekCount = h.days.filter(Boolean).length;
                     h.days = [false, false, false, false, false, false, false];
+                    if (h.subhabits) {
+                        h.subhabits.forEach(sub => sub.days = [false, false, false, false, false, false, false]);
+                    }
                 });
                 appMeta.currentWeekStart = currentKey;
                 localStorage.setItem('acuityMeta', JSON.stringify(appMeta));
@@ -433,6 +463,13 @@
                 for (let i = currentDayIndex + 1; i < 7; i++) {
                     if (h.days[i] === true) { h.days[i] = false; changed = true; }
                 }
+                if (h.subhabits) {
+                    h.subhabits.forEach(sub => {
+                        for (let i = currentDayIndex + 1; i < 7; i++) {
+                            if (sub.days[i] === true) { sub.days[i] = false; changed = true; }
+                        }
+                    });
+                }
             });
 
             if (changed) localStorage.setItem('acuityHabits', JSON.stringify(habits));
@@ -442,14 +479,63 @@
             const input = document.getElementById('habitInput');
             const title = input.value.trim();
             if(!title) return;
-            habits.push({ id: generateId(), title: title, days: [false, false, false, false, false, false, false], lastWeekCount: 0 });
+            habits.push({ id: generateId(), title: title, days: [false, false, false, false, false, false, false], lastWeekCount: 0, subhabits: [], isExpanded: false });
             input.value = ''; 
             saveHabits();
         }
 
+        function toggleHabitExpansion(habitId, forceOpen = false) {
+            setTimeout(() => {
+                const habit = habits.find(h => h.id === habitId);
+                if (habit) {
+                    habit.isExpanded = forceOpen ? true : !habit.isExpanded;
+                    saveHabits();
+                    if (habit.isExpanded) setTimeout(() => document.getElementById(`subhabitInput-${habit.id}`)?.focus(), 50);
+                }
+            }, 10);
+        }
+
+        function updateMainHabitStatus(habit) {
+            if (habit.subhabits && habit.subhabits.length > 0) {
+                for (let i = 0; i < 7; i++) habit.days[i] = habit.subhabits.every(s => s.days[i]);
+            }
+        }
+
         function toggleHabitDay(habitId, dayIndex) {
             const habit = habits.find(h => h.id === habitId);
-            if(habit) { habit.days[dayIndex] = !habit.days[dayIndex]; saveHabits(); }
+            if(habit) { 
+                habit.days[dayIndex] = !habit.days[dayIndex]; 
+                if (habit.subhabits) habit.subhabits.forEach(s => s.days[dayIndex] = habit.days[dayIndex]);
+                saveHabits(); 
+            }
+        }
+
+        function toggleSubhabitDay(habitId, subtaskId, dayIndex) {
+            const habit = habits.find(h => h.id === habitId);
+            if (habit && habit.subhabits) {
+                const sub = habit.subhabits.find(s => s.id === subtaskId);
+                if (sub) { sub.days[dayIndex] = !sub.days[dayIndex]; updateMainHabitStatus(habit); saveHabits(); }
+            }
+        }
+
+        function addSubhabit(habitId) {
+            const input = document.getElementById(`subhabitInput-${habitId}`);
+            if (!input || !input.value.trim()) return;
+            const habit = habits.find(h => h.id === habitId);
+            if (habit) {
+                habit.subhabits = habit.subhabits || [];
+                habit.subhabits.push({ id: generateId(), title: input.value.trim(), days: [false, false, false, false, false, false, false] });
+                habit.isExpanded = true; updateMainHabitStatus(habit); saveHabits();
+                setTimeout(() => document.getElementById(`subhabitInput-${habit.id}`)?.focus(), 50);
+            }
+        }
+
+        function deleteSubhabit(habitId, subtaskId) {
+            const habit = habits.find(h => h.id === habitId);
+            if (habit && habit.subhabits) {
+                habit.subhabits = habit.subhabits.filter(s => s.id !== subtaskId);
+                updateMainHabitStatus(habit); saveHabits();
+            }
         }
 
         function deleteHabit(id) { habits = habits.filter(h => h.id !== id); saveHabits(); }
@@ -510,12 +596,40 @@
             const currentDayIndex = (today.getDay() + 6) % 7; 
 
             habits.forEach(habit => {
+                habit.subhabits = habit.subhabits || [];
+                const totalSubs = habit.subhabits.length;
+                
+                let expanderHTML = '';
+                if (totalSubs > 0) {
+                    expanderHTML = `<div class="mt-1"><button type="button" onclick="toggleHabitExpansion('${habit.id}')" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors"><i class="ph ${habit.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>${totalSubs} Sub-Habits</button></div>`;
+                } else {
+                    expanderHTML = `<div class="mt-1"><button type="button" onclick="toggleHabitExpansion('${habit.id}', true)" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity"><i class="ph ph-plus text-sm"></i> Add Sub-Habit</button></div>`;
+                }
+
                 let mainCheckboxesHTML = '';
                 for(let i=0; i<7; i++) {
                     const isFutureDay = i > currentDayIndex;
                     mainCheckboxesHTML += `<td class="text-center py-4"><input type="checkbox" class="habit-checkbox" ${habit.days[i] ? 'checked' : ''} ${isFutureDay ? 'disabled title="Time-locked"' : ''} onchange="toggleHabitDay('${habit.id}', ${i})"></td>`;
                 }
-                list.innerHTML += `<tr class="border-b-2 border-navy border-opacity-10 hover:bg-beige transition-colors"><td class="py-4 font-bold text-navy text-lg">${habit.title}</td>${mainCheckboxesHTML}<td class="text-right py-4 pr-2"><button type="button" onclick="deleteHabit('${habit.id}')" class="text-navy-light hover:text-brand-red"><i class="ph ph-trash text-xl"></i></button></td></tr>`;
+
+                let subhabitsHTML = '';
+                let addSubhabitHTML = '';
+
+                if (habit.isExpanded) {
+                    if (totalSubs > 0) {
+                        habit.subhabits.forEach(sub => {
+                            let subCheckboxesHTML = '';
+                            for(let i=0; i<7; i++) {
+                                const isFutureDay = i > currentDayIndex;
+                                subCheckboxesHTML += `<td class="text-center py-2"><input type="checkbox" class="subhabit-checkbox mx-auto" ${sub.days[i] ? 'checked' : ''} ${isFutureDay ? 'disabled title="Time-locked"' : ''} onchange="toggleSubhabitDay('${habit.id}', '${sub.id}', ${i})"></td>`;
+                            }
+                            subhabitsHTML += `<tr class="bg-beige hover:bg-beige-dark transition-colors group/sub"><td class="py-2 pl-8 font-bold text-navy-light text-sm flex items-center gap-2 border-l-4 border-brand-blue ml-2"><i class="ph ph-arrow-elbow-down-right"></i> <span class="${sub.days[currentDayIndex] ? 'line-through opacity-70' : ''}">${sub.title}</span></td>${subCheckboxesHTML}<td class="text-right py-2 pr-2"><button type="button" onclick="deleteSubhabit('${habit.id}', '${sub.id}')" class="opacity-0 group-hover/sub:opacity-100 text-navy-light hover:text-brand-red transition-opacity"><i class="ph ph-x"></i></button></td></tr>`;
+                        });
+                    }
+                    addSubhabitHTML = `<tr class="border-b-2 border-navy border-opacity-20 bg-beige"><td class="py-2 pl-8 pb-4 border-l-4 border-brand-blue ml-2"><div class="flex items-center gap-2 max-w-[200px]"><input type="text" id="subhabitInput-${habit.id}" class="neo-input text-[10px] px-2 py-1.5 w-full rounded font-bold text-navy" placeholder="Add sub-habit..." onkeypress="if(event.key === 'Enter') addSubhabit('${habit.id}')"><button type="button" onclick="addSubhabit('${habit.id}')" class="neo-btn neo-btn-blue px-2 py-1.5 rounded text-[10px]"><i class="ph ph-plus"></i></button></div></td><td colspan="8"></td></tr>`;
+                }
+
+                list.innerHTML += `<tr class="border-b-2 border-navy border-opacity-10 hover:bg-beige transition-colors ${habit.isExpanded ? 'bg-beige' : ''}"><td class="py-4 font-bold text-navy text-lg">${habit.title}${expanderHTML}</td>${mainCheckboxesHTML}<td class="text-right py-4 pr-2"><button type="button" onclick="deleteHabit('${habit.id}')" class="text-navy-light hover:text-brand-red"><i class="ph ph-trash text-xl"></i></button></td></tr>${subhabitsHTML}${addSubhabitHTML}`;
             });
             drawHabitsGraph(); updateTrends();
         }
@@ -579,7 +693,7 @@
             const title = titleInput.value.trim();
             if(!title) return;
 
-            tasks.push({ id: generateId(), title: title, deadline: dateInput.value, completed: false, completedAt: null });
+            tasks.push({ id: generateId(), title: title, deadline: dateInput.value, completed: false, completedAt: null, subtasks: [], isExpanded: false });
             titleInput.value = ''; dateInput.value = '';
             saveTasks();
         }
@@ -592,9 +706,56 @@
             const today = new Date();
             const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-            tasks.push({ id: generateId(), title: title, deadline: dateStr, completed: false, completedAt: null });
+            tasks.push({ id: generateId(), title: title, deadline: dateStr, completed: false, completedAt: null, subtasks: [], isExpanded: false });
             titleInput.value = ''; document.getElementById('taskDate').value = '';
             saveTasks();
+        }
+
+        function toggleTaskExpansion(taskId, forceOpen = false) {
+            setTimeout(() => {
+                const task = tasks.find(t => t.id === taskId);
+                if (task) {
+                    task.isExpanded = forceOpen ? true : !task.isExpanded;
+                    saveTasks();
+                    if (task.isExpanded && !task.completed) setTimeout(() => document.getElementById(`subtaskInput-${task.id}`)?.focus(), 50);
+                }
+            }, 10);
+        }
+
+        function updateMainTaskStatus(task) {
+            if (task.subtasks && task.subtasks.length > 0) {
+                const allDone = task.subtasks.every(s => s.completed);
+                task.completed = allDone;
+                task.completedAt = allDone ? Date.now() : null;
+            }
+        }
+
+        function addSubtask(taskId) {
+            const input = document.getElementById(`subtaskInput-${taskId}`);
+            if (!input || !input.value.trim()) return;
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.subtasks = task.subtasks || [];
+                task.subtasks.push({ id: generateId(), title: input.value.trim(), completed: false });
+                task.isExpanded = true; updateMainTaskStatus(task); saveTasks();
+                setTimeout(() => document.getElementById(`subtaskInput-${task.id}`)?.focus(), 50);
+            }
+        }
+
+        function toggleSubtask(taskId, subtaskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task && task.subtasks) {
+                const subtask = task.subtasks.find(s => s.id === subtaskId);
+                if (subtask) { subtask.completed = !subtask.completed; updateMainTaskStatus(task); saveTasks(); }
+            }
+        }
+
+        function deleteSubtask(taskId, subtaskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task && task.subtasks) {
+                task.subtasks = task.subtasks.filter(s => s.id !== subtaskId);
+                updateMainTaskStatus(task); saveTasks();
+            }
         }
 
         function toggleTaskComplete(id) {
@@ -602,6 +763,9 @@
             if(task) {
                 task.completed = !task.completed;
                 task.completedAt = task.completed ? Date.now() : null;
+                if (task.subtasks && task.subtasks.length > 0) {
+                    task.subtasks.forEach(s => s.completed = task.completed);
+                }
                 saveTasks();
             }
         }
@@ -640,20 +804,53 @@
                 const isOverdue = dateObj && dateObj < new Date() && !task.completed;
                 const deadlineColor = task.completed ? 'text-navy-light' : (isOverdue ? 'text-brand-red' : 'text-brand-blue');
 
+                task.subtasks = task.subtasks || [];
+                const totalSubs = task.subtasks.length;
+                const doneSubs = task.subtasks.filter(s => s.completed).length;
+
+                let expanderHTML = '';
+                if (totalSubs > 0) {
+                    expanderHTML = `<div class="mt-1 pl-9"><button onclick="toggleTaskExpansion('${task.id}')" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors"><i class="ph ${task.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>${doneSubs}/${totalSubs} Subtasks</button></div>`;
+                } else if (!task.completed) {
+                    expanderHTML = `<div class="mt-1 pl-9"><button onclick="toggleTaskExpansion('${task.id}', true)" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity"><i class="ph ph-plus text-sm"></i> Add Subtask</button></div>`;
+                }
+
+                let subtasksHTML = '';
+                let addSubtaskHTML = '';
+
+                if (task.isExpanded) {
+                    if (totalSubs > 0) {
+                        subtasksHTML = '<div class="flex flex-col gap-2 mt-3 mb-2 pl-9">';
+                        task.subtasks.forEach(sub => {
+                            subtasksHTML += `<div class="flex items-center justify-between group"><div class="flex items-center gap-2"><button onclick="toggleSubtask('${task.id}', '${sub.id}')" class="w-4 h-4 rounded border-2 border-navy flex items-center justify-center bg-white shrink-0 transition-colors ${sub.completed ? 'bg-navy text-white' : ''}">${sub.completed ? '<i class="ph ph-check text-[10px] font-bold"></i>' : ''}</button><span class="text-sm font-bold text-navy ${sub.completed ? 'line-through opacity-50' : ''}">${sub.title}</span></div><button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="opacity-0 group-hover:opacity-100 text-navy-light hover:text-brand-red transition-opacity"><i class="ph ph-x"></i></button></div>`;
+                        });
+                        subtasksHTML += '</div>';
+                    }
+
+                    if (!task.completed) {
+                        addSubtaskHTML = `<div class="flex items-center gap-2 mt-2 pl-9 mb-2"><input type="text" id="subtaskInput-${task.id}" placeholder="Add subtask..." class="neo-input text-xs px-3 py-2 w-full rounded font-bold text-navy" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')"><button onclick="addSubtask('${task.id}')" class="neo-btn neo-btn-blue px-3 py-2 rounded text-xs"><i class="ph ph-plus"></i></button></div>`;
+                    }
+                }
+
                 list.innerHTML += `
-                    <div class="neo-panel p-5 flex flex-col justify-between ${task.completed ? 'bg-beige opacity-60' : 'bg-white'}">
-                        <div class="flex items-start justify-between gap-3 mb-4">
-                            <div class="flex items-start gap-3 w-full">
-                                <button onclick="toggleTaskComplete('${task.id}')" class="mt-1 w-6 h-6 rounded border-2 border-navy flex items-center justify-center bg-white shrink-0 ${task.completed ? 'bg-navy text-white' : ''}">
-                                    ${task.completed ? '<i class="ph ph-check font-bold"></i>' : ''}
-                                </button>
-                                <div>
-                                    <h4 class="font-bold text-navy text-xl leading-tight ${task.completed ? 'line-through text-navy-light' : ''}">${task.title}</h4>
+                    <div class="neo-panel p-5 flex flex-col justify-between ${task.completed ? 'bg-beige opacity-60' : 'bg-white'} transition-all">
+                        <div>
+                            <div class="flex items-start justify-between gap-3 mb-1">
+                                <div class="flex items-start gap-3 w-full">
+                                    <button onclick="toggleTaskComplete('${task.id}')" class="mt-1 w-6 h-6 rounded border-2 border-navy flex items-center justify-center bg-white shrink-0 ${task.completed ? 'bg-navy text-white' : ''}">
+                                        ${task.completed ? '<i class="ph ph-check font-bold"></i>' : ''}
+                                    </button>
+                                    <div>
+                                        <h4 class="font-bold text-navy text-xl leading-tight ${task.completed ? 'line-through text-navy-light' : ''}">${task.title}</h4>
+                                    </div>
                                 </div>
+                                <button onclick="deleteTask('${task.id}')" class="text-navy-light hover:text-brand-red shrink-0"><i class="ph ph-trash text-xl"></i></button>
                             </div>
-                            <button onclick="deleteTask('${task.id}')" class="text-navy-light hover:text-brand-red shrink-0"><i class="ph ph-trash text-xl"></i></button>
+                            ${expanderHTML}
+                            ${subtasksHTML}
+                            ${addSubtaskHTML}
                         </div>
-                        <div class="flex justify-between items-center border-t-2 border-navy border-opacity-20 pt-3">
+                        <div class="flex justify-between items-center border-t-2 border-navy border-opacity-20 pt-3 mt-4">
                             <span class="font-mono text-xs font-black uppercase tracking-widest flex items-center gap-1 ${deadlineColor}">
                                 <i class="ph ph-calendar"></i> ${dateStr} ${isOverdue ? '(OVERDUE)' : ''}
                             </span>
