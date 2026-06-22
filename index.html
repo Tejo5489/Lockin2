@@ -1454,13 +1454,17 @@
                     currentScore = calculateAttentionScore(landmarks);
                 }
 
-                let mouthColor = currentMar > 0.45 ? '#BE123C' : 'rgba(30, 58, 138, 0.1)';
+                // AI is tracking landmarks silently in the background.
+                // The scary wireframe mesh visuals have been removed for a clean camera feed!
                 
-                drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: 'rgba(30, 58, 138, 0.1)', lineWidth: 1}); 
-                drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#047857', lineWidth: 2}); 
-                drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#047857', lineWidth: 2}); 
-                drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {color: mouthColor, lineWidth: 2}); 
-                drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: phoneDetected ? '#BE123C' : '#1E3A8A', lineWidth: phoneDetected ? 4 : 2});
+                if (phoneDetected) {
+                    // Flash the video frame red if a phone is caught instead of tracking the face
+                    canvasCtx.strokeStyle = '#BE123C';
+                    canvasCtx.lineWidth = 12;
+                    canvasCtx.strokeRect(0, 0, canvasElement.width, canvasElement.height);
+                    canvasCtx.fillStyle = 'rgba(190, 18, 60, 0.2)';
+                    canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+                }
                 
                 if (currentEar < 0.22) {
                     if (sleepStartTime === 0) sleepStartTime = performance.now();
