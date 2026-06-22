@@ -58,7 +58,7 @@
         canvas { transform: scaleX(-1); }
         .graph-canvas { transform: scaleX(1); }
         .neo-tab-btn { border: 3px solid #0F172A; border-bottom: 6px solid #0F172A; transition: all 0.1s ease-in-out; background: #FFFFFF; color: #0F172A; }
-        .neo-tab-btn.active { background: #0F172A; color: #FFFFFF; border-bottom: 3px solid #0F172A; transform: translateY(3px); }
+        .neo-tab-btn.active { background: #2563EB; color: #FFFFFF; border-bottom: 3px solid #0F172A; transform: translateY(3px); }
         
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -89,7 +89,7 @@
     <!-- Auth Gate / Formspree Lead Capture -->
     <div id="authGate" class="fixed inset-0 z-[100] bg-beige flex flex-col items-center justify-center p-4 transition-opacity duration-300">
         <div class="max-w-md w-full neo-panel p-10 bg-white flex flex-col items-center text-center shadow-[12px_12px_0px_0px_#0F172A]">
-            <div class="bg-navy text-white p-4 rounded-xl shadow-[4px_4px_0px_0px_#0F172A] mb-6">
+            <div class="bg-brand-blue text-white p-4 rounded-xl shadow-[4px_4px_0px_0px_#0F172A] mb-6">
                 <i class="ph ph-target text-5xl"></i>
             </div>
             <h1 class="text-4xl font-display font-black tracking-tight text-navy uppercase mb-2">LockIn</h1>
@@ -112,10 +112,10 @@
 
     <div class="w-full max-w-[1200px] flex flex-col gap-6">
         
-        <!-- Academic Header -->
+        <!-- Header -->
         <header class="flex flex-col md:flex-row items-center justify-between mb-2">
             <div class="flex items-center gap-4">
-                <div class="bg-navy text-white p-3 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
+                <div class="bg-brand-blue text-white p-3 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
                     <i class="ph ph-target text-3xl"></i>
                 </div>
                 <div>
@@ -160,12 +160,13 @@
                     <p id="trendDesc" class="text-xs font-bold text-navy-light mt-2 uppercase tracking-widest">Gathering Data</p>
                 </div>
             </div>
-            <div class="neo-panel p-6 bg-navy flex flex-col md:flex-row gap-4 items-end text-white">
+            <!-- BRIGHT BLUE INPUT PANEL -->
+            <div class="neo-panel p-6 bg-brand-blue flex flex-col md:flex-row gap-4 items-end text-white">
                 <div class="flex-1 w-full">
-                    <label class="text-beige text-xs font-black uppercase tracking-widest mb-2 block">New Daily Habit</label>
-                    <input type="text" id="habitInput" placeholder="e.g. Read 20 pages, Deep Work session..." class="neo-input w-full px-4 py-3 rounded-lg font-bold text-navy">
+                    <label class="text-white/80 text-xs font-black uppercase tracking-widest mb-2 block">New Daily Habit</label>
+                    <input type="text" id="habitInput" placeholder="e.g. Read 20 pages, Deep Work session..." class="neo-input w-full px-4 py-3 rounded-lg font-bold text-navy border-white shadow-[4px_4px_0px_0px_#0F172A]">
                 </div>
-                <button onclick="addHabit()" class="neo-btn neo-btn-white py-3 px-8 rounded-lg w-full md:w-auto h-full whitespace-nowrap">Add Habit</button>
+                <button onclick="addHabit()" class="neo-btn neo-btn-white py-3 px-8 rounded-lg w-full md:w-auto h-full whitespace-nowrap border-white">Add Habit</button>
             </div>
             <div class="neo-panel p-6 overflow-x-auto bg-white">
                 <table class="w-full min-w-[600px] text-left">
@@ -189,20 +190,21 @@
 
         <!-- TASKS TAB -->
         <div id="tab-tasks" class="tab-content hidden flex flex-col gap-6">
-            <div class="neo-panel p-6 bg-navy text-white flex flex-col gap-4">
-                <h2 class="font-display font-black uppercase tracking-widest text-brand-blue text-xl border-b-2 border-navy-light pb-2">Mission Objectives</h2>
+            <!-- BRIGHT BLUE OBJECTIVES PANEL -->
+            <div class="neo-panel p-6 bg-brand-blue text-white flex flex-col gap-4">
+                <h2 class="font-display font-black uppercase tracking-widest text-white text-xl border-b-2 border-white/30 pb-2">Mission Objectives</h2>
                 <div class="flex flex-col md:flex-row gap-4 items-end mt-2">
                     <div class="flex-[2] w-full">
-                        <label class="text-beige text-xs font-black uppercase tracking-widest mb-2 block">Task Objective</label>
-                        <input type="text" id="taskInput" placeholder="What needs to be done?" class="neo-input w-full px-4 py-3 rounded-lg font-bold text-navy">
+                        <label class="text-white/80 text-xs font-black uppercase tracking-widest mb-2 block">Task Objective</label>
+                        <input type="text" id="taskInput" placeholder="What needs to be done?" class="neo-input w-full px-4 py-3 rounded-lg font-bold text-navy shadow-[4px_4px_0px_0px_#0F172A]">
                     </div>
                     <div class="flex-[1] w-full">
-                        <label class="text-beige text-xs font-black uppercase tracking-widest mb-2 block">Deadline (Optional)</label>
-                        <input type="date" id="taskDate" class="neo-input w-full px-4 py-3 rounded-lg font-bold text-navy">
+                        <label class="text-white/80 text-xs font-black uppercase tracking-widest mb-2 block">Deadline (Optional)</label>
+                        <input type="date" id="taskDate" class="neo-input w-full px-4 py-3 rounded-lg font-bold text-navy shadow-[4px_4px_0px_0px_#0F172A]">
                     </div>
                     <div class="flex flex-col gap-2 w-full md:w-auto h-full justify-end">
                         <button onclick="addTask()" class="neo-btn neo-btn-white py-2 px-6 rounded-lg w-full h-11 text-xs">Add Scheduled</button>
-                        <button onclick="addQuickTask()" class="neo-btn neo-btn-blue py-2 px-6 rounded-lg w-full h-11 text-xs border-white shadow-[2px_2px_0px_0px_#FFFFFF]"><i class="ph-fill ph-lightning"></i> Quick Task (Today)</button>
+                        <button onclick="addQuickTask()" class="neo-btn neo-btn-white bg-beige py-2 px-6 rounded-lg w-full h-11 text-xs"><i class="ph-fill ph-lightning text-brand-blue"></i> Quick Task (Today)</button>
                     </div>
                 </div>
             </div>
@@ -227,6 +229,7 @@
                     </button>
                 </div>
                 
+                <!-- Camera background kept dark for optimal video contrast -->
                 <div class="neo-panel overflow-hidden relative aspect-video flex items-center justify-center bg-navy w-full">
                     <video id="input_video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover pointer-events-none z-0"></video>
                     <canvas id="output_canvas" class="absolute inset-0 w-full h-full object-cover hidden z-10"></canvas>
@@ -295,7 +298,7 @@
                     <h2 class="text-navy-light text-xs font-black uppercase tracking-widest mb-4 font-display">Attention State</h2>
                     <span id="statusText" class="text-4xl font-display font-black text-navy uppercase tracking-widest block mb-4">Standby</span>
                     <div class="w-full bg-white rounded-full h-4 border-2 border-navy overflow-hidden">
-                        <div id="scoreBar" class="bg-navy h-full transition-all duration-300 border-r-2 border-navy" style="width: 0%"></div>
+                        <div id="scoreBar" class="bg-beige-dark h-full transition-all duration-300 border-r-2 border-navy" style="width: 0%"></div>
                     </div>
                     <p class="text-[9px] font-mono font-bold text-navy-light mt-4 uppercase">Pitch / Yaw / EAR / MAR Evaluation</p>
                 </div>
@@ -344,6 +347,7 @@
             const authGate = document.getElementById('authGate');
             const loginForm = document.getElementById('loginForm');
             
+            // NOTE: LocalStorage is inherently safe and will not wipe data on reload.
             const savedEmail = localStorage.getItem('lockin_user_email');
             
             if (savedEmail) {
@@ -432,6 +436,7 @@
             return `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`;
         }
 
+        // Safely fetch existing data. This will NEVER override existing user lists.
         let appMeta = JSON.parse(localStorage.getItem('acuityMeta'));
         let habits = JSON.parse(localStorage.getItem('acuityHabits')) || [];
 
@@ -599,11 +604,12 @@
                 habit.subhabits = habit.subhabits || [];
                 const totalSubs = habit.subhabits.length;
                 
+                // --- VISIBLE SUB-HABIT EXPANDER BUTTONS ---
                 let expanderHTML = '';
                 if (totalSubs > 0) {
-                    expanderHTML = `<div class="mt-1"><button type="button" onclick="toggleHabitExpansion('${habit.id}')" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors"><i class="ph ${habit.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>${totalSubs} Sub-Habits</button></div>`;
+                    expanderHTML = `<div class="mt-2"><button type="button" onclick="toggleHabitExpansion('${habit.id}')" class="text-brand-blue hover:text-navy font-black text-[10px] uppercase tracking-widest transition-colors flex items-center gap-1 bg-beige px-2 py-1 rounded w-fit border border-navy/20"><i class="ph ${habit.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>${totalSubs} Sub-Habits</button></div>`;
                 } else {
-                    expanderHTML = `<div class="mt-1"><button type="button" onclick="toggleHabitExpansion('${habit.id}', true)" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity"><i class="ph ph-plus text-sm"></i> Add Sub-Habit</button></div>`;
+                    expanderHTML = `<div class="mt-2"><button type="button" onclick="toggleHabitExpansion('${habit.id}', true)" class="text-navy-light hover:text-brand-blue font-black text-[10px] uppercase tracking-widest transition-colors flex items-center gap-1 bg-beige px-2 py-1 rounded w-fit opacity-70 hover:opacity-100 border border-navy/20"><i class="ph ph-plus text-sm"></i> Add Sub-Habit</button></div>`;
                 }
 
                 let mainCheckboxesHTML = '';
@@ -685,6 +691,8 @@
         // ============================================================================
         // TASKS & DEADLINES LOGIC
         // ============================================================================
+        
+        // Safely fetch existing data. This will NEVER override existing user lists.
         let tasks = JSON.parse(localStorage.getItem('acuityTasksList')) || [];
 
         function addTask() {
@@ -808,11 +816,12 @@
                 const totalSubs = task.subtasks.length;
                 const doneSubs = task.subtasks.filter(s => s.completed).length;
 
+                // --- VISIBLE SUB-TASK EXPANDER BUTTONS ---
                 let expanderHTML = '';
                 if (totalSubs > 0) {
-                    expanderHTML = `<div class="mt-1 pl-9"><button onclick="toggleTaskExpansion('${task.id}')" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors"><i class="ph ${task.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>${doneSubs}/${totalSubs} Subtasks</button></div>`;
+                    expanderHTML = `<div class="mt-2 pl-9"><button onclick="toggleTaskExpansion('${task.id}')" class="text-brand-blue hover:text-navy font-black text-[10px] uppercase tracking-widest transition-colors flex items-center gap-1 bg-beige px-2 py-1 rounded w-fit border border-navy/20"><i class="ph ${task.isExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm"></i>${doneSubs}/${totalSubs} Subtasks</button></div>`;
                 } else if (!task.completed) {
-                    expanderHTML = `<div class="mt-1 pl-9"><button onclick="toggleTaskExpansion('${task.id}', true)" class="text-navy-light hover:text-brand-blue flex items-center gap-1 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity"><i class="ph ph-plus text-sm"></i> Add Subtask</button></div>`;
+                    expanderHTML = `<div class="mt-2 pl-9"><button onclick="toggleTaskExpansion('${task.id}', true)" class="text-navy-light hover:text-brand-blue font-black text-[10px] uppercase tracking-widest transition-colors flex items-center gap-1 bg-beige px-2 py-1 rounded w-fit opacity-70 hover:opacity-100 border border-navy/20"><i class="ph ph-plus text-sm"></i> Add Subtask</button></div>`;
                 }
 
                 let subtasksHTML = '';
@@ -822,7 +831,7 @@
                     if (totalSubs > 0) {
                         subtasksHTML = '<div class="flex flex-col gap-2 mt-3 mb-2 pl-9">';
                         task.subtasks.forEach(sub => {
-                            subtasksHTML += `<div class="flex items-center justify-between group"><div class="flex items-center gap-2"><button onclick="toggleSubtask('${task.id}', '${sub.id}')" class="w-4 h-4 rounded border-2 border-navy flex items-center justify-center bg-white shrink-0 transition-colors ${sub.completed ? 'bg-navy text-white' : ''}">${sub.completed ? '<i class="ph ph-check text-[10px] font-bold"></i>' : ''}</button><span class="text-sm font-bold text-navy ${sub.completed ? 'line-through opacity-50' : ''}">${sub.title}</span></div><button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="opacity-0 group-hover:opacity-100 text-navy-light hover:text-brand-red transition-opacity"><i class="ph ph-x"></i></button></div>`;
+                            subtasksHTML += `<div class="flex items-center justify-between group"><div class="flex items-center gap-2"><button onclick="toggleSubtask('${task.id}', '${sub.id}')" class="w-4 h-4 rounded border-2 border-navy flex items-center justify-center bg-white shrink-0 transition-colors ${sub.completed ? 'bg-brand-blue text-white' : ''}">${sub.completed ? '<i class="ph ph-check text-[10px] font-bold"></i>' : ''}</button><span class="text-sm font-bold text-navy ${sub.completed ? 'line-through opacity-50' : ''}">${sub.title}</span></div><button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="opacity-0 group-hover:opacity-100 text-navy-light hover:text-brand-red transition-opacity"><i class="ph ph-x"></i></button></div>`;
                         });
                         subtasksHTML += '</div>';
                     }
@@ -913,6 +922,7 @@
         const maxGraphPoints = 100;
         let scoreHistory = new Array(maxGraphPoints).fill(0);
         
+        // Safely fetch existing telemetry data
         let sessions = JSON.parse(localStorage.getItem('vigilanceSessions')) || [];
         const sixMonthsAgo = Date.now() - (180 * 24 * 60 * 60 * 1000);
         sessions = sessions.filter(s => s.timestamp >= sixMonthsAgo);
@@ -1230,12 +1240,12 @@
                 if (currentState === 'engaged') {
                     statusText.innerText = 'Engaged';
                     statusText.className = 'text-4xl font-display font-black text-brand-green uppercase tracking-widest block mb-4';
-                    scoreBar.style.backgroundColor = '#047857';
+                    scoreBar.style.backgroundColor = '#047857'; // Green
                 } 
                 else if (currentState === 'contraband') {
                     statusText.innerText = 'PHONE CAUGHT!';
                     statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
-                    scoreBar.style.backgroundColor = '#BE123C';
+                    scoreBar.style.backgroundColor = '#BE123C'; // Red
                     scoreBar.classList.add('siren-animation');
                     playSirenSound(); 
                     addLog('CRITICAL: Cell phone detected.', 'error');
@@ -1243,27 +1253,27 @@
                 else if (currentState === 'disengaged') {
                     statusText.innerText = 'Looking Away';
                     statusText.className = 'text-4xl font-display font-black text-brand-amber uppercase tracking-widest block mb-4';
-                    scoreBar.style.backgroundColor = '#D97706';
+                    scoreBar.style.backgroundColor = '#D97706'; // Amber
                     if(!justReturned) playAlertSound();
                 }
                 else if (currentState === 'drowsy') {
                     statusText.innerText = 'Micro-Sleep Alert!';
                     statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
-                    scoreBar.style.backgroundColor = '#BE123C';
+                    scoreBar.style.backgroundColor = '#BE123C'; // Red
                     playAlertSound(); 
                     addLog('CRITICAL: Micro-sleep detected.', 'error');
                 }
                 else if (currentState === 'yawning') {
                     statusText.innerText = 'Fatigue Detected';
                     statusText.className = 'text-4xl font-display font-black text-brand-red uppercase tracking-widest block mb-4';
-                    scoreBar.style.backgroundColor = '#BE123C';
+                    scoreBar.style.backgroundColor = '#BE123C'; // Red
                     playAlertSound(); 
                     addLog('Fatigue Warning: Yawn detected.', 'warning');
                 }
                 else if (currentState === 'missing') {
                     statusText.innerText = 'Subject Lost';
                     statusText.className = 'text-4xl font-display font-black text-navy uppercase tracking-widest block mb-4';
-                    scoreBar.style.backgroundColor = '#0F172A';
+                    scoreBar.style.backgroundColor = '#D1CCC4'; // Beige Dark
                     playLeaveSound(); 
                 }
             }
@@ -1442,6 +1452,7 @@
             const focusPercent = totalTimeSec > 0 ? Math.round((onCameraSec / totalTimeSec) * 100) : 0;
             let bIcon = "☁️", bTitle = "Wandering Mind";
 
+            // The strict grading logic
             if (totalTimeSec < 60) {
                 bIcon = "⏱️"; bTitle = "Too Short"; 
             } else if (onCameraSec >= 1800 && focusPercent >= 85) {
@@ -1475,7 +1486,7 @@
             currentScore = 0; smoothedScore = 0; currentState = 'standby';
             statusText.innerText = 'Standby';
             statusText.className = 'text-4xl font-display font-black text-navy uppercase tracking-widest block mb-4';
-            scoreBar.style.backgroundColor = '#0F172A';
+            scoreBar.style.backgroundColor = '#D1CCC4'; // Beige dark instead of black
             if(scoreBar) scoreBar.classList.remove('siren-animation');
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
             totalTimeSec = 0; unfocusedSeconds = 0; onCameraSec = 0; offCameraSec = 0; breaksCount = 0;
